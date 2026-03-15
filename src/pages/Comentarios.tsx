@@ -76,8 +76,8 @@ const Comentarios = () => {
   }, [filterEmp, filterDemanda]);
 
   const fetchComentariosPauta = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('esquadro_comentarios_pauta')
+    const { data, error } = await (supabase
+      .from('esquadro_comentarios_pauta' as any) as any)
       .select(`
         *,
         autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
