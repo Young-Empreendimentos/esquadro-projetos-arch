@@ -76,8 +76,8 @@ const Comentarios = () => {
   }, [filterEmp, filterDemanda]);
 
   const fetchComentariosPauta = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('esquadro_comentarios_pauta')
+    const { data, error } = await (supabase
+      .from('esquadro_comentarios_pauta' as any) as any)
       .select(`
         *,
         autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
@@ -129,7 +129,7 @@ const Comentarios = () => {
       return;
     }
     setSendingPauta(true);
-    const { error } = await supabase.from('esquadro_comentarios_pauta').insert({
+    const { error } = await (supabase.from('esquadro_comentarios_pauta' as any) as any).insert({
       user_id: user?.id,
       conteudo: novoPautaTexto.trim(),
       fixado: false,
@@ -145,8 +145,8 @@ const Comentarios = () => {
   };
 
   const toggleFixar = async (id: string, currentFixado: boolean) => {
-    const { error } = await supabase
-      .from('esquadro_comentarios_pauta')
+    const { error } = await (supabase
+      .from('esquadro_comentarios_pauta' as any) as any)
       .update({ fixado: !currentFixado })
       .eq('id', id);
     if (error) {

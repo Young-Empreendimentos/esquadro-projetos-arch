@@ -607,6 +607,30 @@ export type Database = {
           },
         ]
       }
+      esquadro_comentarios_pauta: {
+        Row: {
+          conteudo: string
+          created_at: string
+          fixado: boolean
+          id: string
+          user_id: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          fixado?: boolean
+          id?: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          fixado?: boolean
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       esquadro_custo_hora_historico: {
         Row: {
           created_at: string

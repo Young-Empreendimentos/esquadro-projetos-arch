@@ -36,8 +36,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const fetchItems = async () => {
-    const { data, error } = await supabase
-      .from(tableName)
+    const { data, error } = await (supabase
+      .from(tableName as any) as any)
       .select('*')
       .order(orderBy);
     if (error) {
@@ -78,8 +78,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
 
   const handleSave = async () => {
     if (editingId) {
-      const { error } = await supabase
-        .from(tableName)
+      const { error } = await (supabase
+        .from(tableName as any) as any)
         .update(formData)
         .eq('id', editingId);
       if (error) {
@@ -88,8 +88,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
       }
       toast({ title: 'Atualizado com sucesso' });
     } else {
-      const { error } = await supabase
-        .from(tableName)
+      const { error } = await (supabase
+        .from(tableName as any) as any)
         .insert(formData);
       if (error) {
         toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
@@ -102,8 +102,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   };
 
   const toggleAtivo = async (id: string, currentValue: boolean) => {
-    const { error } = await supabase
-      .from(tableName)
+    const { error } = await (supabase
+      .from(tableName as any) as any)
       .update({ ativo: !currentValue })
       .eq('id', id);
     if (error) {
