@@ -22,11 +22,7 @@ const Comentarios = () => {
   const [novoTexto, setNovoTexto] = useState('');
   const [novoDemandaId, setNovoDemandaId] = useState('');
   const [sending, setSending] = useState(false);
-
-  // Comentário-pauta state
-  const [comentariosPauta, setComentariosPauta] = useState<any[]>([]);
-  const [novoPautaTexto, setNovoPautaTexto] = useState('');
-  const [sendingPauta, setSendingPauta] = useState(false);
+  const [modoPauta, setModoPauta] = useState(false);
 
   useEffect(() => {
     const fetchRefData = async () => {
