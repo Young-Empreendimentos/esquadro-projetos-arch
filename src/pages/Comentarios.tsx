@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 const Comentarios = () => {
   const { user, profile, isAdmin } = useAuth();
   const [comentarios, setComentarios] = useState<any[]>([]);
+  const [comentariosPauta, setComentariosPauta] = useState<any[]>([]);
   const [demandas, setDemandas] = useState<any[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
@@ -22,11 +23,7 @@ const Comentarios = () => {
   const [novoTexto, setNovoTexto] = useState('');
   const [novoDemandaId, setNovoDemandaId] = useState('');
   const [sending, setSending] = useState(false);
-
-  // Comentário-pauta state
-  const [comentariosPauta, setComentariosPauta] = useState<any[]>([]);
-  const [novoPautaTexto, setNovoPautaTexto] = useState('');
-  const [sendingPauta, setSendingPauta] = useState(false);
+  const [modoPauta, setModoPauta] = useState(false);
 
   useEffect(() => {
     const fetchRefData = async () => {
@@ -42,7 +39,6 @@ const Comentarios = () => {
       ]);
       setEmpreendimentos(empRes.data || []);
       setDemandas(demRes.data || []);
-      // Build profiles map
       const map: Record<string, any> = {};
       (profRes.data || []).forEach((p: any) => { map[p.id] = p; });
       setProfiles(map);
@@ -92,58 +88,56 @@ const Comentarios = () => {
     }
   }, []);
 
-  useEffect(() => {
-    fetchComentarios();
-  }, [fetchComentarios]);
-
-  useEffect(() => {
-    fetchComentariosPauta();
-  }, [fetchComentariosPauta]);
+  useEffect(() => { fetchComentarios(); }, [fetchComentarios]);
+  useEffect(() => { fetchComentariosPauta(); }, [fetchComentariosPauta]);
 
   const filteredDemandas = filterEmp === 'all'
     ? demandas
     : demandas.filter((d: any) => d.empreendimento_id === filterEmp);
 
   const handleSend = async () => {
-    if (!novoTexto.trim() || !novoDemandaId) {
-      toast({ title: 'Selecione uma demanda e escreva o comentário', variant: 'destructive' });
+    if (!novoTexto.trim()) {
+      toast({ title: 'Escreva o comentário', variant: 'destructive' });
       return;
     }
-    setSending(true);
-    const { error } = await supabase.from('esquadro_comentarios').insert({
-      demanda_id: novoDemandaId,
-      user_id: user?.id,
-      conteudo: novoTexto.trim(),
-    });
-    if (error) {
-      toast({ title: 'Erro ao enviar', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Comentário enviado' });
-      setNovoTexto('');
-      fetchComentarios();
-    }
-    setSending(false);
-  };
 
-  const handleSendPauta = async () => {
-    if (!novoPautaTexto.trim()) {
-      toast({ title: 'Escreva o comentário-pauta', variant: 'destructive' });
-      return;
-    }
-    setSendingPauta(true);
-    const { error } = await (supabase.from('esquadro_comentarios_pauta' as any) as any).insert({
-      user_id: user?.id,
-      conteudo: novoPautaTexto.trim(),
-      fixado: false,
-    });
-    if (error) {
-      toast({ title: 'Erro ao enviar', description: error.message, variant: 'destructive' });
+    if (modoPauta) {
+      // Send as comentário-pauta
+      setSending(true);
+      const { error } = await (supabase.from('esquadro_comentarios_pauta' as any) as any).insert({
+        user_id: user?.id,
+        conteudo: novoTexto.trim(),
+        fixado: false,
+      });
+      if (error) {
+        toast({ title: 'Erro ao enviar', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Comentário-pauta enviado' });
+        setNovoTexto('');
+        fetchComentariosPauta();
+      }
+      setSending(false);
     } else {
-      toast({ title: 'Comentário-pauta enviado' });
-      setNovoPautaTexto('');
-      fetchComentariosPauta();
+      // Send as regular comment
+      if (!novoDemandaId) {
+        toast({ title: 'Selecione uma demanda', variant: 'destructive' });
+        return;
+      }
+      setSending(true);
+      const { error } = await supabase.from('esquadro_comentarios').insert({
+        demanda_id: novoDemandaId,
+        user_id: user?.id,
+        conteudo: novoTexto.trim(),
+      });
+      if (error) {
+        toast({ title: 'Erro ao enviar', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Comentário enviado' });
+        setNovoTexto('');
+        fetchComentarios();
+      }
+      setSending(false);
     }
-    setSendingPauta(false);
   };
 
   const toggleFixar = async (id: string, currentFixado: boolean) => {
@@ -159,36 +153,22 @@ const Comentarios = () => {
     }
   };
 
-  // Merge both comment types into unified feed, sorted by date desc
+  // Merge both comment types into unified feed
   const unifiedFeed = (() => {
     const items: any[] = [];
-
-    // Only include pautas if no demanda/empreendimento filter active
     if (filterDemanda === 'all' && filterEmp === 'all') {
       comentariosPauta.forEach((cp) => {
-        items.push({
-          ...cp,
-          _type: 'pauta',
-          _sortDate: cp.created_at,
-        });
+        items.push({ ...cp, _type: 'pauta', _sortDate: cp.created_at });
       });
     }
-
     comentarios.forEach((c) => {
-      items.push({
-        ...c,
-        _type: 'comentario',
-        _sortDate: c.created_at,
-      });
+      items.push({ ...c, _type: 'comentario', _sortDate: c.created_at });
     });
-
-    // Sort: fixados first, then by date desc
     items.sort((a, b) => {
       if (a._type === 'pauta' && a.fixado && !(b._type === 'pauta' && b.fixado)) return -1;
       if (b._type === 'pauta' && b.fixado && !(a._type === 'pauta' && a.fixado)) return 1;
       return new Date(b._sortDate).getTime() - new Date(a._sortDate).getTime();
     });
-
     return items;
   })();
 
@@ -198,8 +178,7 @@ const Comentarios = () => {
   };
 
   const getUserInitial = (userId: string) => {
-    const display = getUserDisplay(userId);
-    return display.charAt(0).toUpperCase();
+    return getUserDisplay(userId).charAt(0).toUpperCase();
   };
 
   return (
@@ -209,54 +188,56 @@ const Comentarios = () => {
         <p className="text-muted-foreground text-sm mt-1">Comunicação por demanda</p>
       </div>
 
-      {/* Comentário-pauta (admin only) */}
-      {isAdmin && (
-        <div className="bg-card border border-primary/20 rounded-lg p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold">Comentário-Pauta (Direção)</span>
-          </div>
-          <div className="flex gap-3">
-            <Textarea
-              value={novoPautaTexto}
-              onChange={(e) => setNovoPautaTexto(e.target.value)}
-              placeholder="Escreva um comunicado da direção..."
-              rows={2}
-              className="flex-1"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSendPauta();
-              }}
-            />
-            <Button onClick={handleSendPauta} disabled={sendingPauta} size="icon" className="self-end h-10 w-10">
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Unified input block */}
+      <div className={`bg-card border rounded-lg p-4 space-y-3 ${modoPauta ? 'border-primary/30' : ''}`}>
+        <div className="flex items-center gap-3">
+          {/* Demanda selector — hidden when in pauta mode */}
+          {!modoPauta && (
+            <Select value={novoDemandaId} onValueChange={setNovoDemandaId}>
+              <SelectTrigger className="w-72">
+                <SelectValue placeholder="Selecione a demanda" />
+              </SelectTrigger>
+              <SelectContent>
+                {demandas.map((d: any) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.empreendimento?.nome} — {d.tipo_projeto?.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-      {/* New comment */}
-      <div className="bg-card border rounded-lg p-4 space-y-3">
-        <div className="flex gap-3">
-          <Select value={novoDemandaId} onValueChange={setNovoDemandaId}>
-            <SelectTrigger className="w-72">
-              <SelectValue placeholder="Selecione a demanda" />
-            </SelectTrigger>
-            <SelectContent>
-              {demandas.map((d: any) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.empreendimento?.nome} — {d.tipo_projeto?.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {modoPauta && (
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-primary">Comentário-Pauta (Direção)</span>
+            </div>
+          )}
+
+          {/* Toggle pauta mode — admin only */}
+          {isAdmin && (
+            <Button
+              variant={modoPauta ? 'default' : 'outline'}
+              size="sm"
+              className="ml-auto gap-1.5 text-xs"
+              onClick={() => setModoPauta(!modoPauta)}
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              {modoPauta ? 'Pauta ativo' : 'Pauta'}
+            </Button>
+          )}
         </div>
+
         <div className="flex gap-3">
           <Textarea
             value={novoTexto}
             onChange={(e) => setNovoTexto(e.target.value)}
-            placeholder="Escreva seu comentário..."
+            placeholder={modoPauta ? 'Escreva um comunicado da direção...' : 'Escreva seu comentário...'}
             rows={2}
             className="flex-1"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSend();
+            }}
           />
           <Button onClick={handleSend} disabled={sending} size="icon" className="self-end h-10 w-10">
             <Send className="w-4 h-4" />
@@ -343,7 +324,6 @@ const Comentarios = () => {
             );
           }
 
-          // Regular comment
           return (
             <div key={`com-${item.id}`} className="bg-card border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
