@@ -35,7 +35,7 @@ const ConfigUsuarios = () => {
   const [form, setForm] = useState({
     email: '',
     nome: '',
-    role: 'arquiteta',
+    role: 'comum',
     custo_hora: '',
     password: '',
   });
