@@ -129,7 +129,7 @@ const Comentarios = () => {
       return;
     }
     setSendingPauta(true);
-    const { error } = await supabase.from('esquadro_comentarios_pauta').insert({
+    const { error } = await (supabase.from('esquadro_comentarios_pauta' as any) as any).insert({
       user_id: user?.id,
       conteudo: novoPautaTexto.trim(),
       fixado: false,
