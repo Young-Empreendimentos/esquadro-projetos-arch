@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target } from 'lucide-react';
+import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target, Megaphone, Pin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isBefore, startOfDay, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const HORAS_PADRAO: Record<number, number> = {
   1: 8.75, // segunda
@@ -41,6 +42,7 @@ const Dashboard = () => {
   const [urgentes, setUrgentes] = useState<any[]>([]);
   const [recentes, setRecentes] = useState<any[]>([]);
   const [pendencias, setPendencias] = useState<any[]>([]);
+  const [pautasFixadas, setPautasFixadas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Indicador de conclusão no prazo
@@ -53,6 +55,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch pinned pautas
+      const { data: pautasData } = await supabase
+        .from('esquadro_comentarios_pauta')
+        .select(`
+          *,
+          autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
+        `)
+        .eq('fixado', true)
+        .order('created_at', { ascending: false });
+      setPautasFixadas(pautasData || []);
       const now = new Date();
       const mesInicio = format(startOfMonth(now), 'yyyy-MM-dd');
       const mesFim = format(endOfMonth(now), 'yyyy-MM-dd');
@@ -340,7 +352,37 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Modal memória de cálculo */}
+      {/* Comentários-pauta fixados */}
+      {pautasFixadas.length > 0 && (
+        <div className="bg-card border border-primary/20 rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Megaphone className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Comunicados da Direção</h2>
+          </div>
+          <div className="space-y-3">
+            {pautasFixadas.map((cp: any) => (
+              <div key={cp.id} className="border border-primary/10 rounded-lg p-4 bg-primary/5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-bold">
+                      {(cp.autor?.nome || cp.autor?.email || 'D')?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <span className="text-xs font-medium">{cp.autor?.nome || cp.autor?.email || 'Direção'}</span>
+                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
+                      <Pin className="w-2.5 h-2.5" /> Fixado
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(cp.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">{cp.conteudo}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Dialog open={indicadorModalOpen} onOpenChange={setIndicadorModalOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
