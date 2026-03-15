@@ -42,6 +42,7 @@ const Dashboard = () => {
   const [urgentes, setUrgentes] = useState<any[]>([]);
   const [recentes, setRecentes] = useState<any[]>([]);
   const [pendencias, setPendencias] = useState<any[]>([]);
+  const [pautasFixadas, setPautasFixadas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Indicador de conclusão no prazo
