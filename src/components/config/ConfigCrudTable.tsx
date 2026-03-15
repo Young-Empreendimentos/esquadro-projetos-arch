@@ -78,8 +78,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
 
   const handleSave = async () => {
     if (editingId) {
-      const { error } = await supabase
-        .from(tableName)
+      const { error } = await (supabase
+        .from(tableName as any) as any)
         .update(formData)
         .eq('id', editingId);
       if (error) {
