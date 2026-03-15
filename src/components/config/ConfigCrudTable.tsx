@@ -36,8 +36,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const fetchItems = async () => {
-    const { data, error } = await supabase
-      .from(tableName)
+    const { data, error } = await (supabase
+      .from(tableName as any) as any)
       .select('*')
       .order(orderBy);
     if (error) {
