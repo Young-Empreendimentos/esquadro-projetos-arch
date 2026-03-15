@@ -145,8 +145,8 @@ const Comentarios = () => {
   };
 
   const toggleFixar = async (id: string, currentFixado: boolean) => {
-    const { error } = await supabase
-      .from('esquadro_comentarios_pauta')
+    const { error } = await (supabase
+      .from('esquadro_comentarios_pauta' as any) as any)
       .update({ fixado: !currentFixado })
       .eq('id', id);
     if (error) {

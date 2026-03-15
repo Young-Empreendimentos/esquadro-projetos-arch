@@ -56,8 +56,8 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       // Fetch pinned pautas
-      const { data: pautasData } = await supabase
-        .from('esquadro_comentarios_pauta')
+      const { data: pautasData } = await (supabase
+        .from('esquadro_comentarios_pauta' as any) as any)
         .select(`
           *,
           autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
