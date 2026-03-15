@@ -265,12 +265,9 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {isAdmin ? 'Visão geral dos projetos' : `Olá, ${profile?.nome || 'Bem-vindo(a)'}!`}
-        </p>
-      </div>
+      {!isAdmin && (
+        <p className="text-muted-foreground text-sm">{`Olá, ${profile?.nome || 'Bem-vindo(a)'}!`}</p>
+      )}
 
       {/* Pendências de alocação de horas */}
       {pendencias.length > 0 && (
