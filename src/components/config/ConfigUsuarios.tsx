@@ -54,7 +54,7 @@ const ConfigUsuarios = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ email: '', nome: '', role: 'arquiteta', custo_hora: '', password: '' });
+    setForm({ email: '', nome: '', role: 'comum', custo_hora: '', password: '' });
     setEditingId(null);
   };
 
