@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target } from 'lucide-react';
+import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target, Megaphone, Pin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isBefore, startOfDay, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const HORAS_PADRAO: Record<number, number> = {
   1: 8.75, // segunda
