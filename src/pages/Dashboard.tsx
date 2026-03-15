@@ -55,6 +55,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch pinned pautas
+      const { data: pautasData } = await supabase
+        .from('esquadro_comentarios_pauta')
+        .select(`
+          *,
+          autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
+        `)
+        .eq('fixado', true)
+        .order('created_at', { ascending: false });
+      setPautasFixadas(pautasData || []);
       const now = new Date();
       const mesInicio = format(startOfMonth(now), 'yyyy-MM-dd');
       const mesFim = format(endOfMonth(now), 'yyyy-MM-dd');
