@@ -102,8 +102,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   };
 
   const toggleAtivo = async (id: string, currentValue: boolean) => {
-    const { error } = await supabase
-      .from(tableName)
+    const { error } = await (supabase
+      .from(tableName as any) as any)
       .update({ ativo: !currentValue })
       .eq('id', id);
     if (error) {

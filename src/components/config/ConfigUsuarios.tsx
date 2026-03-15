@@ -113,8 +113,8 @@ const ConfigUsuarios = () => {
       // Insert into esquadro_usuarios table
       // The auth user should be created separately or via admin API
       // For now, we insert the profile record
-      const { error } = await supabase
-        .from('esquadro_profiles')
+      const { error } = await (supabase
+        .from('esquadro_profiles') as any)
         .insert({
           email: form.email,
           nome: form.nome || null,
