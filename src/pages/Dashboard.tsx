@@ -55,16 +55,21 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch pinned pautas
-      const { data: pautasData } = await (supabase
-        .from('esquadro_comentarios_pauta' as any) as any)
-        .select(`
-          *,
-          autor:esquadro_profiles!esquadro_comentarios_pauta_user_id_fkey(nome, email)
-        `)
-        .eq('fixado', true)
-        .order('created_at', { ascending: false });
-      setPautasFixadas(pautasData || []);
+      // Fetch pinned pautas + profiles for user info
+      const [pautasRes, profilesRes] = await Promise.all([
+        (supabase.from('esquadro_comentarios_pauta' as any) as any)
+          .select('*')
+          .eq('fixado', true)
+          .order('created_at', { ascending: false }),
+        supabase.from('esquadro_profiles').select('id, nome, email'),
+      ]);
+      const profilesMap: Record<string, any> = {};
+      (profilesRes.data || []).forEach((p: any) => { profilesMap[p.id] = p; });
+      setPautasFixadas((pautasRes.data || []).map((cp: any) => ({
+        ...cp,
+        _autorNome: profilesMap[cp.user_id]?.nome || profilesMap[cp.user_id]?.email || 'Direção',
+        _autorInitial: (profilesMap[cp.user_id]?.nome || profilesMap[cp.user_id]?.email || 'D').charAt(0).toUpperCase(),
+      })));
       const now = new Date();
       const mesInicio = format(startOfMonth(now), 'yyyy-MM-dd');
       const mesFim = format(endOfMonth(now), 'yyyy-MM-dd');
@@ -362,9 +367,9 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-bold">
-                      {(cp.autor?.nome || cp.autor?.email || 'D')?.charAt(0)?.toUpperCase()}
+                      {cp._autorInitial}
                     </div>
-                    <span className="text-xs font-medium">{cp.autor?.nome || cp.autor?.email || 'Direção'}</span>
+                    <span className="text-xs font-medium">{cp._autorNome}</span>
                     <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
                       <Pin className="w-2.5 h-2.5" /> Fixado
                     </Badge>
