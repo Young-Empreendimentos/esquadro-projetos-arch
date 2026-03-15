@@ -88,8 +88,8 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
       }
       toast({ title: 'Atualizado com sucesso' });
     } else {
-      const { error } = await supabase
-        .from(tableName)
+      const { error } = await (supabase
+        .from(tableName as any) as any)
         .insert(formData);
       if (error) {
         toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
