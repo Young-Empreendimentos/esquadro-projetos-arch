@@ -367,9 +367,9 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-bold">
-                      {(cp.autor?.nome || cp.autor?.email || 'D')?.charAt(0)?.toUpperCase()}
+                      {cp._autorInitial}
                     </div>
-                    <span className="text-xs font-medium">{cp.autor?.nome || cp.autor?.email || 'Direção'}</span>
+                    <span className="text-xs font-medium">{cp._autorNome}</span>
                     <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
                       <Pin className="w-2.5 h-2.5" /> Fixado
                     </Badge>
