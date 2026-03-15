@@ -35,7 +35,7 @@ const ConfigUsuarios = () => {
   const [form, setForm] = useState({
     email: '',
     nome: '',
-    role: 'arquiteta',
+    role: 'comum',
     custo_hora: '',
     password: '',
   });
@@ -54,7 +54,7 @@ const ConfigUsuarios = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ email: '', nome: '', role: 'arquiteta', custo_hora: '', password: '' });
+    setForm({ email: '', nome: '', role: 'comum', custo_hora: '', password: '' });
     setEditingId(null);
   };
 
@@ -188,7 +188,7 @@ const ConfigUsuarios = () => {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted">
