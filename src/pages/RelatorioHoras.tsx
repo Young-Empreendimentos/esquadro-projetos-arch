@@ -165,11 +165,6 @@ const RelatorioHoras = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Relatório de Horas</h1>
-        <p className="text-muted-foreground text-sm mt-1">Horas por profissional e projeto</p>
-      </div>
-
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <Select value={visualizacao} onValueChange={(v) => setVisualizacao(v as Visualizacao)}>

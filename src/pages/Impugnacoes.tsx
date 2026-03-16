@@ -54,13 +54,6 @@ const Impugnacoes = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <AlertTriangle className="w-6 h-6 text-destructive" />
-          Impugnações
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">Histórico de impugnações registradas</p>
-      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">

@@ -244,11 +244,7 @@ const Historico = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Histórico</h1>
-          <p className="text-muted-foreground text-sm mt-1">Relatórios e comparativos</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant="outline" onClick={handleExportCSV} disabled={loading}>
           <Download className="w-4 h-4 mr-1" />
           Exportar CSV
