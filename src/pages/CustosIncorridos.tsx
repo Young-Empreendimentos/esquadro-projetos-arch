@@ -195,10 +195,6 @@ const CustosIncorridos = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Custos Incorridos</h1>
-        <p className="text-muted-foreground text-sm mt-1">Custos realizados por projeto</p>
-      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

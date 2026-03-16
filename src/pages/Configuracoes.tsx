@@ -16,10 +16,6 @@ const simpleColumns = [
 const Configuracoes = () => {
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground text-sm mt-1">Administração do sistema</p>
-      </div>
 
       <Tabs defaultValue="status" className="space-y-4">
         <TabsList className="bg-muted">

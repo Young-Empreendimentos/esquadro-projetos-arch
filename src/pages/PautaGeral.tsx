@@ -88,13 +88,7 @@ const PautaGeral = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Pauta Geral</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gestão de demandas de projetos
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-1" />
           Nova Demanda

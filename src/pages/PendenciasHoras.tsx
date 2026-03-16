@@ -80,12 +80,6 @@ const PendenciasHoras = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Pendências de Alocação de Horas</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Controle de horas não alocadas pelas arquitetas desde 23/02/2026
-        </p>
-      </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-12">Carregando...</p>

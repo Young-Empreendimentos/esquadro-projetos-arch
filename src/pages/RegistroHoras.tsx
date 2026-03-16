@@ -325,11 +325,7 @@ const RegistroHoras = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Registro de Horas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Timesheet semanal</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={handleSave} disabled={saving}>
           <Save className="w-4 h-4 mr-1" />
           {saving ? 'Salvando...' : 'Salvar'}
