@@ -46,6 +46,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [novaImpugnacaoData, setNovaImpugnacaoData] = useState('');
   const [addingImpugnacao, setAddingImpugnacao] = useState(false);
   const [showImpugnacaoForm, setShowImpugnacaoForm] = useState(false);
+  const [horasConsumidas, setHorasConsumidas] = useState<number>(0);
 
   const canEditInstrucoes = isAdmin || profile?.role === 'arquiteta';
 
@@ -53,6 +54,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     if (!demanda || !open) return;
     fetchComentarios();
     fetchImpugnacoes();
+    fetchHorasConsumidas();
   }, [demanda, open]);
 
   const fetchComentarios = async () => {
@@ -90,6 +92,15 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
       .eq('demanda_id', demanda.id)
       .order('data', { ascending: false });
     setImpugnacoes(data || []);
+  };
+
+  const fetchHorasConsumidas = async () => {
+    if (!demanda) return;
+    const { data } = await supabase
+      .from('esquadro_registro_horas')
+      .select('horas')
+      .eq('demanda_id', demanda.id);
+    setHorasConsumidas((data || []).reduce((sum: number, r: any) => sum + (r.horas || 0), 0));
   };
 
   const handleAddImpugnacao = async () => {
@@ -243,6 +254,9 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               >
                 · {demanda.horas_estimadas != null ? `${demanda.horas_estimadas}h estimadas` : 'Definir horas'}
               </span>
+            )}
+            {horasConsumidas > 0 && (
+              <span className="ml-1 text-primary font-medium">· {horasConsumidas}h consumidas</span>
             )}
           </DialogDescription>
         </DialogHeader>

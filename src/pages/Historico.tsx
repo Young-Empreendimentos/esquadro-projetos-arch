@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, BarChart3, Table as TableIcon, Check, ChevronsUpDown, X } from 'lucide-react';
+import { Download, BarChart3, Table as TableIcon, Check, ChevronsUpDown, X, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears, startOfQuarter, endOfQuarter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,6 +42,7 @@ const Historico = () => {
   const [loading, setLoading] = useState(true);
   const [demandas, setDemandas] = useState<any[]>([]);
   const [horas, setHoras] = useState<any[]>([]);
+  const [motivosList, setMotivosList] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<any[]>([]);
 
@@ -59,7 +60,7 @@ const Historico = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [demRes, horasRes, usrRes, empRes] = await Promise.all([
+      const [demRes, horasRes, usrRes, empRes, motivosRes] = await Promise.all([
         supabase.from('esquadro_demandas').select(`
           id, horas_estimadas, prioridade, prazo, data_solicitacao, arquiteta_id, instrucoes,
           empreendimento:esquadro_empreendimentos(id, nome),
@@ -67,13 +68,15 @@ const Historico = () => {
           tipo_projeto:esquadro_tipos_projeto(id, nome),
           impugnacoes:esquadro_impugnacoes(id)
         `),
-        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data'),
+        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id'),
         supabase.from('esquadro_profiles').select('id, nome, email, custo_hora').eq('ativo', true).order('nome'),
         supabase.from('esquadro_empreendimentos').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('esquadro_motivos_nao_trabalho').select('id, nome').eq('ativo', true).order('nome'),
       ]);
       setDemandas(demRes.data || []);
       setHoras(horasRes.data || []);
       setUsuarios(usrRes.data || []);
+      setMotivosList(motivosRes.data || []);
       setEmpreendimentos(empRes.data || []);
 
       // Extract unique statuses from demandas
@@ -109,6 +112,31 @@ const Historico = () => {
       return d >= dateRange.start && d <= dateRange.end;
     });
   }, [horas, dateRange]);
+
+  // Non-work hours
+  const nonWorkHoras = useMemo(() => {
+    let result = filteredHoras.filter((h: any) => h.motivo_nao_trabalho_id != null);
+    if (filterArquiteta !== 'all') result = result.filter((h: any) => h.user_id === filterArquiteta);
+    return result;
+  }, [filteredHoras, filterArquiteta]);
+
+  const horasPorMotivo = useMemo(() => {
+    const map: Record<string, { nome: string; totalHoras: number; porUsuario: Record<string, { nome: string; horas: number }> }> = {};
+    nonWorkHoras.forEach((h: any) => {
+      const mId = h.motivo_nao_trabalho_id;
+      const motivo = motivosList.find((m: any) => m.id === mId);
+      if (!map[mId]) map[mId] = { nome: motivo?.nome || 'Desconhecido', totalHoras: 0, porUsuario: {} };
+      map[mId].totalHoras += h.horas || 0;
+      if (!map[mId].porUsuario[h.user_id]) {
+        const usr = usuarios.find((u: any) => u.id === h.user_id);
+        map[mId].porUsuario[h.user_id] = { nome: usr?.nome || usr?.email || 'Desconhecido', horas: 0 };
+      }
+      map[mId].porUsuario[h.user_id].horas += h.horas || 0;
+    });
+    return Object.values(map).sort((a, b) => b.totalHoras - a.totalHoras);
+  }, [nonWorkHoras, motivosList, usuarios]);
+
+  const totalNonWorkHoras = nonWorkHoras.reduce((s: number, h: any) => s + (h.horas || 0), 0);
 
   // Build enriched demandas
   const enrichedDemandas = useMemo(() => {
@@ -393,6 +421,10 @@ const Historico = () => {
                 <TableIcon className="w-4 h-4" />
                 Tabela Detalhada
               </TabsTrigger>
+              <TabsTrigger value="nao_trabalho" className="gap-1.5">
+                <Clock className="w-4 h-4" />
+                Não-Trabalho
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="graficos">
@@ -519,6 +551,46 @@ const Historico = () => {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="nao_trabalho">
+              <div className="space-y-4">
+                <div className="bg-card border rounded-lg p-4">
+                  <p className="text-xs text-muted-foreground">Total de Horas Não-Trabalho</p>
+                  <p className="text-2xl font-bold mt-1">{totalNonWorkHoras.toFixed(1)}h</p>
+                </div>
+                {horasPorMotivo.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Nenhum registro de não-trabalho no período.</p>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden bg-card">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Motivo</th>
+                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Profissional</th>
+                          <th className="text-right px-4 py-3 font-medium text-muted-foreground">Horas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {horasPorMotivo.map((m, mi) => (
+                          Object.values(m.porUsuario).map((u, ui) => (
+                            <tr key={`${mi}-${ui}`} className="border-t hover:bg-muted/50">
+                              {ui === 0 && (
+                                <td className="px-4 py-3 font-medium" rowSpan={Object.keys(m.porUsuario).length}>
+                                  {m.nome}
+                                  <p className="text-xs text-muted-foreground font-normal">{m.totalHoras.toFixed(1)}h total</p>
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-muted-foreground">{u.nome}</td>
+                              <td className="px-4 py-3 text-right tabular-nums">{u.horas.toFixed(1)}h</td>
+                            </tr>
+                          ))
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
