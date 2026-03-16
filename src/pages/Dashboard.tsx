@@ -36,6 +36,7 @@ const Dashboard = () => {
     emAndamento: 0,
     atrasadas: 0,
     horasMes: 0,
+    horasNaoTrabalho: 0,
     concluidas: 0,
     totalDemandas: 0,
   });
@@ -82,7 +83,7 @@ const Dashboard = () => {
           status:esquadro_status(id, nome),
           tipo_projeto:esquadro_tipos_projeto(nome)
         `).order('prioridade').order('prazo'),
-        supabase.from('esquadro_registro_horas').select('horas, user_id')
+        supabase.from('esquadro_registro_horas').select('horas, user_id, demanda_id, motivo_nao_trabalho_id')
           .gte('data', mesInicio).lte('data', mesFim),
         supabase.from('esquadro_status').select('id, nome').eq('ativo', true),
         supabase.from('esquadro_registro_horas').select('demanda_id, data'),
@@ -114,13 +115,17 @@ const Dashboard = () => {
       const horasFiltered = isAdmin
         ? horasData
         : horasData.filter((h: any) => h.user_id === profile?.id);
-      const horasTotal = horasFiltered.reduce((sum: number, r: any) => sum + (r.horas || 0), 0);
+      const horasWork = horasFiltered.filter((h: any) => h.demanda_id != null);
+      const horasNonWork = horasFiltered.filter((h: any) => h.motivo_nao_trabalho_id != null);
+      const horasTotal = horasWork.reduce((sum: number, r: any) => sum + (r.horas || 0), 0);
+      const horasNaoTrabalho = horasNonWork.reduce((sum: number, r: any) => sum + (r.horas || 0), 0);
 
       setStats({
         empreendimentos: empRes.count || 0,
         emAndamento: emAndamento.length,
         atrasadas: atrasadas.length,
         horasMes: horasTotal,
+        horasNaoTrabalho: horasNaoTrabalho,
         concluidas: concluidas.length,
         totalDemandas: allDemandas.length,
       });
@@ -212,6 +217,7 @@ const Dashboard = () => {
     { label: 'Concluídas', value: stats.concluidas, icon: CheckCircle2, color: 'bg-primary' },
     { label: 'Empreendimentos', value: stats.empreendimentos, icon: Building2, color: 'bg-accent' },
     { label: isAdmin ? 'Horas no Mês (Equipe)' : 'Minhas Horas no Mês', value: `${stats.horasMes.toFixed(1)}h`, icon: Users, color: 'bg-primary' },
+    { label: 'Não-Trabalho (Mês)', value: `${stats.horasNaoTrabalho.toFixed(1)}h`, icon: Clock, color: 'bg-accent' },
   ];
 
   // Indicador de conclusão no prazo - semestral

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -48,6 +49,7 @@ type MotivoRow = {
   tempId: string;
   motivoId: string;
   horas: Record<string, number | ''>;  // date -> hours
+  observacao: string;
 };
 
 const EM_ANDAMENTO_ID = '819a3d87-3884-4223-ac1b-7262434f0828';
@@ -154,6 +156,7 @@ const RegistroHoras = () => {
 
       const cellMap: Record<CellKey, CellData> = {};
       const motivoMap: Record<string, Record<string, number>> = {};
+      const motivoObsMap: Record<string, string> = {};
 
       (horasRes.data || []).forEach((r: any) => {
         if (r.demanda_id) {
@@ -165,6 +168,9 @@ const RegistroHoras = () => {
         } else if (r.motivo_nao_trabalho_id) {
           if (!motivoMap[r.motivo_nao_trabalho_id]) motivoMap[r.motivo_nao_trabalho_id] = {};
           motivoMap[r.motivo_nao_trabalho_id][r.data] = r.horas || 0;
+          if (r.observacao && !motivoObsMap[r.motivo_nao_trabalho_id]) {
+            motivoObsMap[r.motivo_nao_trabalho_id] = r.observacao;
+          }
         }
       });
 
@@ -174,6 +180,7 @@ const RegistroHoras = () => {
         tempId: createTempId(),
         motivoId,
         horas: Object.fromEntries(Object.entries(horas).map(([d, h]) => [d, h || ''])),
+        observacao: motivoObsMap[motivoId] || '',
       }));
       setMotivoRows(rows);
     } catch (err) {
@@ -197,7 +204,7 @@ const RegistroHoras = () => {
 
   const addMotivoRow = (motivoId: string) => {
     if (!motivoId) return;
-    setMotivoRows((prev) => [...prev, { tempId: createTempId(), motivoId, horas: {} }]);
+    setMotivoRows((prev) => [...prev, { tempId: createTempId(), motivoId, horas: {}, observacao: '' }]);
     setMotivoModalOpen(false);
   };
 
@@ -218,6 +225,10 @@ const RegistroHoras = () => {
           : r
       )
     );
+  };
+
+  const updateMotivoRowObservacao = (tempId: string, value: string) => {
+    setMotivoRows((prev) => prev.map((r) => r.tempId === tempId ? { ...r, observacao: value } : r));
   };
 
   const handleSave = async () => {
@@ -279,6 +290,7 @@ const RegistroHoras = () => {
           data,
           horas: Number(h),
           motivo_nao_trabalho_id: row.motivoId,
+          observacao: row.observacao || null,
         });
       });
     });
@@ -524,49 +536,65 @@ const RegistroHoras = () => {
             {/* Motivo rows — each row = one reason with hours per day */}
             {!loading && motivoRows.map((row) => {
               const rowTotal = getMotivoRowTotal(row);
+              const motivoNome = motivos.find((m: any) => m.id === row.motivoId)?.nome || 'Motivo desconhecido';
+              const isAtivAdmin = motivoNome.toLowerCase().includes('administrativ');
               return (
-                <tr key={row.tempId} className="border-t border-dashed">
-                  <td className="px-4 py-2 sticky left-0 bg-card z-10">
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs font-medium truncate max-w-[170px]">
-                        {motivos.find((m: any) => m.id === row.motivoId)?.nome || 'Motivo desconhecido'}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeMotivoRow(row.tempId);
-                        }}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </td>
-                  {days.map((day, i) => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isWeekend = isSaturday(day) || isSunday(day);
-                    return (
-                      <td key={i} className={`px-1 py-2 text-center ${isWeekend ? 'bg-muted/30' : ''}`}>
-                        <Input
-                          type="number"
-                          step="0.25"
-                          min="0"
-                          max="24"
-                          value={row.horas[dateStr] ?? ''}
-                          onChange={(e) => updateMotivoRowHoras(row.tempId, dateStr, e.target.value)}
-                          className="w-16 mx-auto text-center h-8 text-xs tabular-nums"
-                          disabled={!row.motivoId}
+                <Fragment key={row.tempId}>
+                  <tr className="border-t border-dashed">
+                    <td className="px-4 py-2 sticky left-0 bg-card z-10">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-medium truncate max-w-[170px]">
+                          {motivoNome}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeMotivoRow(row.tempId);
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </td>
+                    {days.map((day, i) => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const isWeekend = isSaturday(day) || isSunday(day);
+                      return (
+                        <td key={i} className={`px-1 py-2 text-center ${isWeekend ? 'bg-muted/30' : ''}`}>
+                          <Input
+                            type="number"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                            value={row.horas[dateStr] ?? ''}
+                            onChange={(e) => updateMotivoRowHoras(row.tempId, dateStr, e.target.value)}
+                            className="w-16 mx-auto text-center h-8 text-xs tabular-nums"
+                            disabled={!row.motivoId}
+                          />
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-2 text-center font-medium tabular-nums text-xs text-muted-foreground">
+                      {rowTotal > 0 ? `${rowTotal}h` : '—'}
+                    </td>
+                  </tr>
+                  {isAtivAdmin && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-2">
+                        <Textarea
+                          placeholder="Descreva as atividades administrativas realizadas..."
+                          value={row.observacao}
+                          onChange={(e) => updateMotivoRowObservacao(row.tempId, e.target.value)}
+                          className="text-xs min-h-[50px]"
                         />
                       </td>
-                    );
-                  })}
-                  <td className="px-3 py-2 text-center font-medium tabular-nums text-xs text-muted-foreground">
-                    {rowTotal > 0 ? `${rowTotal}h` : '—'}
-                  </td>
-                </tr>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
 

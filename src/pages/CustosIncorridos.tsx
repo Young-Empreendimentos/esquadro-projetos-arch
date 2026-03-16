@@ -35,7 +35,7 @@ const CustosIncorridos = () => {
   // Sort, collapse & view mode
   const [sortBy, setSortBy] = useState<'custo' | 'horas'>('custo');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'projetos' | 'medias'>('projetos');
+  const [viewMode, setViewMode] = useState<'projetos' | 'medias' | 'rateio'>('projetos');
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -47,7 +47,7 @@ const CustosIncorridos = () => {
           status:esquadro_status(id, nome)
         `),
         supabase.from('esquadro_profiles').select('id, nome, email, custo_hora'),
-        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data'),
+        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id'),
         supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
         supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
         supabase.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
@@ -153,6 +153,69 @@ const CustosIncorridos = () => {
       .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
       .sort((a, b) => b.media - a.media);
   }, [custosPorDemanda]);
+
+  // Rateio de horas não trabalhadas
+  const rateioData = useMemo(() => {
+    let nonWorkHours = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
+    if (dateFrom) {
+      const from = format(dateFrom, 'yyyy-MM-dd');
+      nonWorkHours = nonWorkHours.filter((h: any) => h.data >= from);
+    }
+    if (dateTo) {
+      const to = format(dateTo, 'yyyy-MM-dd');
+      nonWorkHours = nonWorkHours.filter((h: any) => h.data <= to);
+    }
+    if (selArqs.length > 0) {
+      nonWorkHours = nonWorkHours.filter((h: any) => selArqs.includes(h.user_id));
+    }
+
+    const nonWorkByUser: Record<string, number> = {};
+    nonWorkHours.forEach((h: any) => {
+      nonWorkByUser[h.user_id] = (nonWorkByUser[h.user_id] || 0) + (h.horas || 0);
+    });
+
+    const workByUserProject: Record<string, Record<string, number>> = {};
+    const totalWorkByUser: Record<string, number> = {};
+    custosPorDemanda.forEach((d: any) => {
+      Object.entries(d.porUsuario as Record<string, any>).forEach(([userId, userData]: [string, any]) => {
+        if (!workByUserProject[userId]) workByUserProject[userId] = {};
+        workByUserProject[userId][d.id] = userData.horas;
+        totalWorkByUser[userId] = (totalWorkByUser[userId] || 0) + userData.horas;
+      });
+    });
+
+    const rateioByProject: Record<string, { rateioHoras: number; rateioCusto: number }> = {};
+    Object.entries(nonWorkByUser).forEach(([userId, nwHoras]) => {
+      const usr = usuarios.find((u: any) => u.id === userId);
+      const custoHora = usr?.custo_hora || 0;
+      const totalWork = totalWorkByUser[userId] || 0;
+      if (totalWork === 0) return;
+      const userProjects = workByUserProject[userId] || {};
+      Object.entries(userProjects).forEach(([demandaId, workHoras]) => {
+        const proportion = workHoras / totalWork;
+        if (!rateioByProject[demandaId]) rateioByProject[demandaId] = { rateioHoras: 0, rateioCusto: 0 };
+        rateioByProject[demandaId].rateioHoras += nwHoras * proportion;
+        rateioByProject[demandaId].rateioCusto += nwHoras * proportion * custoHora;
+      });
+    });
+
+    return custosPorDemanda.map((d: any) => ({
+      ...d,
+      rateioHoras: rateioByProject[d.id]?.rateioHoras || 0,
+      rateioCusto: rateioByProject[d.id]?.rateioCusto || 0,
+      custoComRateio: d.custoTotal + (rateioByProject[d.id]?.rateioCusto || 0),
+    }));
+  }, [custosPorDemanda, horas, usuarios, dateFrom, dateTo, selArqs]);
+
+  const totalRateio = rateioData.reduce((s, d) => s + d.rateioCusto, 0);
+
+  const totalNonWorkFiltered = useMemo(() => {
+    let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
+    if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
+    if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
+    if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
+    return nw.reduce((s: number, h: any) => s + (h.horas || 0), 0);
+  }, [horas, dateFrom, dateTo, selArqs]);
 
   const MultiSelectFilter = ({
     label,
@@ -336,6 +399,17 @@ const CustosIncorridos = () => {
         >
           Média de Custos
         </button>
+        <button
+          onClick={() => setViewMode('rateio')}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+            viewMode === 'rateio'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Rateio Não-Trabalho
+        </button>
       </div>
 
       {/* Content based on view mode */}
@@ -415,7 +489,7 @@ const CustosIncorridos = () => {
             </div>
           )}
         </>
-      ) : (
+      ) : viewMode === 'medias' ? (
         <>
           {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
@@ -439,6 +513,70 @@ const CustosIncorridos = () => {
                     </p>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {loading ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
+          ) : rateioData.filter(d => d.totalHoras > 0).length === 0 ? (
+            <div className="bg-card border rounded-lg p-12 text-center">
+              <DollarSign className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">Nenhum dado para rateio.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-card border rounded-lg p-4">
+                <p className="text-xs text-muted-foreground">Total de Horas Não-Trabalho no Período</p>
+                <p className="text-2xl font-bold mt-1">{totalNonWorkFiltered.toFixed(1)}h</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Custo rateado: R$ {totalRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="border rounded-lg overflow-hidden bg-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Projeto</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Custo Direto</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Rateio</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Custo Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rateioData.filter(d => d.totalHoras > 0).map((d) => (
+                      <tr key={d.id} className="border-t hover:bg-muted/50">
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{d.empreendimento?.nome}</p>
+                          <p className="text-xs text-muted-foreground">{d.tipo_projeto?.nome} · {d.status?.nome}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          R$ {d.custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-primary">
+                          R$ {d.rateioCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-bold">
+                          R$ {d.custoComRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 bg-muted/50 font-medium">
+                      <td className="px-4 py-3">Total</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        R$ {custoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-primary">
+                        R$ {totalRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-bold">
+                        R$ {(custoGeral + totalRateio).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
