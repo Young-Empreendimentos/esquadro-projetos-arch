@@ -400,22 +400,22 @@ const CustosIncorridos = () => {
         >
           Média de Custos
         </button>
-        <button
-          onClick={() => setViewMode('rateio')}
-          className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            viewMode === 'rateio'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Rateio Não-Trabalho
-        </button>
       </div>
 
       {/* Content based on view mode */}
       {viewMode === 'projetos' ? (
         <>
+          {/* Toggle rateio */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant={incluirRateio ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIncluirRateio(!incluirRateio)}
+            >
+              {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
+            </Button>
+          </div>
+
           {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
           ) : custosPorDemanda.length === 0 ? (
@@ -425,8 +425,9 @@ const CustosIncorridos = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {custosPorDemanda.map((d: any) => {
+              {(incluirRateio ? rateioData : custosPorDemanda).map((d: any) => {
                 const isOpen = openIds.has(d.id);
+                const displayCusto = incluirRateio ? d.custoComRateio : d.custoTotal;
                 return (
                   <Collapsible key={d.id} open={isOpen} onOpenChange={() => toggleOpen(d.id)}>
                     <CollapsibleTrigger asChild>
@@ -446,9 +447,16 @@ const CustosIncorridos = () => {
                             </div>
                           </div>
                         </div>
-                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4">
-                          R$ {d.custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold tabular-nums whitespace-nowrap">
+                            R$ {displayCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          {incluirRateio && d.rateioCusto > 0 && (
+                            <p className="text-xs text-primary tabular-nums">
+                              +R$ {d.rateioCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} rateio
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </CollapsibleTrigger>
 
@@ -487,10 +495,53 @@ const CustosIncorridos = () => {
                   </Collapsible>
                 );
               })}
+
+              {/* Non-work as pseudo-project when NOT using rateio */}
+              {!incluirRateio && totalNonWorkFiltered > 0 && (() => {
+                const nonWorkCost = (() => {
+                  let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
+                  if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
+                  if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
+                  if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
+                  return nw.reduce((s: number, h: any) => {
+                    const usr = usuarios.find((u: any) => u.id === h.user_id);
+                    return s + (h.horas || 0) * (usr?.custo_hora || 0);
+                  }, 0);
+                })();
+                const isOpen = openIds.has('__nao_trabalho__');
+                return (
+                  <Collapsible open={isOpen} onOpenChange={() => toggleOpen('__nao_trabalho__')}>
+                    <CollapsibleTrigger asChild>
+                      <div className="bg-card border rounded-lg px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors border-dashed">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          }
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate text-muted-foreground">Horas Não-Trabalho</p>
+                            <span className="text-xs text-muted-foreground">{totalNonWorkFiltered.toFixed(1)}h no período</span>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4 text-muted-foreground">
+                          R$ {nonWorkCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-card border border-t-0 border-dashed rounded-b-lg px-5 pb-4 pt-2 -mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Este custo representa as horas alocadas em motivos de não-trabalho. Ative "Com Rateio" para distribuir proporcionalmente entre os projetos.
+                        </p>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })()}
             </div>
           )}
         </>
-      ) : viewMode === 'medias' ? (
+      ) : (
         <>
           {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
@@ -514,70 +565,6 @@ const CustosIncorridos = () => {
                     </p>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          {loading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
-          ) : rateioData.filter(d => d.totalHoras > 0).length === 0 ? (
-            <div className="bg-card border rounded-lg p-12 text-center">
-              <DollarSign className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Nenhum dado para rateio.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-card border rounded-lg p-4">
-                <p className="text-xs text-muted-foreground">Total de Horas Não-Trabalho no Período</p>
-                <p className="text-2xl font-bold mt-1">{totalNonWorkFiltered.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Custo rateado: R$ {totalRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="border rounded-lg overflow-hidden bg-card">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Projeto</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Custo Direto</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Rateio</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Custo Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rateioData.filter(d => d.totalHoras > 0).map((d) => (
-                      <tr key={d.id} className="border-t hover:bg-muted/50">
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{d.empreendimento?.nome}</p>
-                          <p className="text-xs text-muted-foreground">{d.tipo_projeto?.nome} · {d.status?.nome}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          R$ {d.custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-primary">
-                          R$ {d.rateioCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-bold">
-                          R$ {d.custoComRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t-2 bg-muted/50 font-medium">
-                      <td className="px-4 py-3">Total</td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        R$ {custoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-primary">
-                        R$ {totalRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold">
-                        R$ {(custoGeral + totalRateio).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
             </div>
           )}
