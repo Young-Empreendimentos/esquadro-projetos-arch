@@ -140,22 +140,6 @@ const CustosIncorridos = () => {
   const custoGeral = custosPorDemanda.reduce((s, d) => s + d.custoTotal, 0);
   const horasGeral = custosPorDemanda.reduce((s, d) => s + d.totalHoras, 0);
 
-  // Average cost by project type
-  const mediasPorTipo = useMemo(() => {
-    const source = incluirRateio ? rateioData : custosPorDemanda;
-    const map: Record<string, { nome: string; total: number; count: number }> = {};
-    source.forEach((d: any) => {
-      const tipoNome = d.tipo_projeto?.nome || 'Sem tipo';
-      const tipoId = d.tipo_projeto?.id || 'sem';
-      if (!map[tipoId]) map[tipoId] = { nome: tipoNome, total: 0, count: 0 };
-      map[tipoId].total += incluirRateio ? (d.custoComRateio || d.custoTotal) : d.custoTotal;
-      map[tipoId].count += 1;
-    });
-    return Object.values(map)
-      .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
-      .sort((a, b) => b.media - a.media);
-  }, [custosPorDemanda, rateioData, incluirRateio]);
-
   // Rateio de horas não trabalhadas
   const rateioData = useMemo(() => {
     let nonWorkHours = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
@@ -218,6 +202,33 @@ const CustosIncorridos = () => {
     if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
     return nw.reduce((s: number, h: any) => s + (h.horas || 0), 0);
   }, [horas, dateFrom, dateTo, selArqs]);
+
+  const nonWorkCost = useMemo(() => {
+    let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
+    if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
+    if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
+    if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
+    return nw.reduce((s: number, h: any) => {
+      const usr = usuarios.find((u: any) => u.id === h.user_id);
+      return s + (h.horas || 0) * (usr?.custo_hora || 0);
+    }, 0);
+  }, [horas, usuarios, dateFrom, dateTo, selArqs]);
+
+  // Average cost by project type
+  const mediasPorTipo = useMemo(() => {
+    const source = incluirRateio ? rateioData : custosPorDemanda;
+    const map: Record<string, { nome: string; total: number; count: number }> = {};
+    source.forEach((d: any) => {
+      const tipoNome = d.tipo_projeto?.nome || 'Sem tipo';
+      const tipoId = d.tipo_projeto?.id || 'sem';
+      if (!map[tipoId]) map[tipoId] = { nome: tipoNome, total: 0, count: 0 };
+      map[tipoId].total += incluirRateio ? (d.custoComRateio || d.custoTotal) : d.custoTotal;
+      map[tipoId].count += 1;
+    });
+    return Object.values(map)
+      .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
+      .sort((a, b) => b.media - a.media);
+  }, [custosPorDemanda, rateioData, incluirRateio]);
 
   const MultiSelectFilter = ({
     label,
