@@ -140,21 +140,6 @@ const CustosIncorridos = () => {
   const custoGeral = custosPorDemanda.reduce((s, d) => s + d.custoTotal, 0);
   const horasGeral = custosPorDemanda.reduce((s, d) => s + d.totalHoras, 0);
 
-  // Average cost by project type
-  const mediasPorTipo = useMemo(() => {
-    const map: Record<string, { nome: string; total: number; count: number }> = {};
-    custosPorDemanda.forEach((d: any) => {
-      const tipoNome = d.tipo_projeto?.nome || 'Sem tipo';
-      const tipoId = d.tipo_projeto?.id || 'sem';
-      if (!map[tipoId]) map[tipoId] = { nome: tipoNome, total: 0, count: 0 };
-      map[tipoId].total += d.custoTotal;
-      map[tipoId].count += 1;
-    });
-    return Object.values(map)
-      .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
-      .sort((a, b) => b.media - a.media);
-  }, [custosPorDemanda]);
-
   // Rateio de horas não trabalhadas
   const rateioData = useMemo(() => {
     let nonWorkHours = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
@@ -217,6 +202,33 @@ const CustosIncorridos = () => {
     if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
     return nw.reduce((s: number, h: any) => s + (h.horas || 0), 0);
   }, [horas, dateFrom, dateTo, selArqs]);
+
+  const nonWorkCost = useMemo(() => {
+    let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
+    if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
+    if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
+    if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
+    return nw.reduce((s: number, h: any) => {
+      const usr = usuarios.find((u: any) => u.id === h.user_id);
+      return s + (h.horas || 0) * (usr?.custo_hora || 0);
+    }, 0);
+  }, [horas, usuarios, dateFrom, dateTo, selArqs]);
+
+  // Average cost by project type
+  const mediasPorTipo = useMemo(() => {
+    const source = incluirRateio ? rateioData : custosPorDemanda;
+    const map: Record<string, { nome: string; total: number; count: number }> = {};
+    source.forEach((d: any) => {
+      const tipoNome = d.tipo_projeto?.nome || 'Sem tipo';
+      const tipoId = d.tipo_projeto?.id || 'sem';
+      if (!map[tipoId]) map[tipoId] = { nome: tipoNome, total: 0, count: 0 };
+      map[tipoId].total += incluirRateio ? (d.custoComRateio || d.custoTotal) : d.custoTotal;
+      map[tipoId].count += 1;
+    });
+    return Object.values(map)
+      .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
+      .sort((a, b) => b.media - a.media);
+  }, [custosPorDemanda, rateioData, incluirRateio]);
 
   const MultiSelectFilter = ({
     label,
@@ -376,46 +388,44 @@ const CustosIncorridos = () => {
         </div>
       </div>
 
-      {/* View mode tabs */}
-      <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setViewMode('projetos')}
-          className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            viewMode === 'projetos'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
+      {/* View mode tabs + rateio toggle */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
+          <button
+            onClick={() => setViewMode('projetos')}
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+              viewMode === 'projetos'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Relação de Projetos
+          </button>
+          <button
+            onClick={() => setViewMode('medias')}
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+              viewMode === 'medias'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Média de Custos
+          </button>
+        </div>
+        <Button
+          variant={incluirRateio ? "default" : "outline"}
+          size="sm"
+          onClick={() => setIncluirRateio(!incluirRateio)}
         >
-          Relação de Projetos
-        </button>
-        <button
-          onClick={() => setViewMode('medias')}
-          className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            viewMode === 'medias'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Média de Custos
-        </button>
+          {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
+        </Button>
       </div>
 
       {/* Content based on view mode */}
       {viewMode === 'projetos' ? (
         <>
-          {/* Toggle rateio */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant={incluirRateio ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIncluirRateio(!incluirRateio)}
-            >
-              {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
-            </Button>
-          </div>
-
           {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
           ) : custosPorDemanda.length === 0 ? (
@@ -425,6 +435,39 @@ const CustosIncorridos = () => {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Non-work as pseudo-project FIRST when NOT using rateio */}
+              {!incluirRateio && totalNonWorkFiltered > 0 && (() => {
+                const isOpen = openIds.has('__nao_trabalho__');
+                return (
+                  <Collapsible open={isOpen} onOpenChange={() => toggleOpen('__nao_trabalho__')}>
+                    <CollapsibleTrigger asChild>
+                      <div className="bg-card border rounded-lg px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors border-dashed">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          }
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate text-muted-foreground">Horas Não-Trabalho</p>
+                            <span className="text-xs text-muted-foreground">{totalNonWorkFiltered.toFixed(1)}h no período</span>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4 text-muted-foreground">
+                          R$ {nonWorkCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-card border border-t-0 border-dashed rounded-b-lg px-5 pb-4 pt-2 -mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Este custo representa as horas alocadas em motivos de não-trabalho. Ative "Com Rateio" para distribuir proporcionalmente entre os projetos.
+                        </p>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })()}
+
               {(incluirRateio ? rateioData : custosPorDemanda).map((d: any) => {
                 const isOpen = openIds.has(d.id);
                 const displayCusto = incluirRateio ? d.custoComRateio : d.custoTotal;
@@ -495,49 +538,6 @@ const CustosIncorridos = () => {
                   </Collapsible>
                 );
               })}
-
-              {/* Non-work as pseudo-project when NOT using rateio */}
-              {!incluirRateio && totalNonWorkFiltered > 0 && (() => {
-                const nonWorkCost = (() => {
-                  let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
-                  if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
-                  if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
-                  if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
-                  return nw.reduce((s: number, h: any) => {
-                    const usr = usuarios.find((u: any) => u.id === h.user_id);
-                    return s + (h.horas || 0) * (usr?.custo_hora || 0);
-                  }, 0);
-                })();
-                const isOpen = openIds.has('__nao_trabalho__');
-                return (
-                  <Collapsible open={isOpen} onOpenChange={() => toggleOpen('__nao_trabalho__')}>
-                    <CollapsibleTrigger asChild>
-                      <div className="bg-card border rounded-lg px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors border-dashed">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {isOpen
-                            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          }
-                          <div className="min-w-0">
-                            <p className="font-semibold truncate text-muted-foreground">Horas Não-Trabalho</p>
-                            <span className="text-xs text-muted-foreground">{totalNonWorkFiltered.toFixed(1)}h no período</span>
-                          </div>
-                        </div>
-                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4 text-muted-foreground">
-                          R$ {nonWorkCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="bg-card border border-t-0 border-dashed rounded-b-lg px-5 pb-4 pt-2 -mt-1">
-                        <p className="text-xs text-muted-foreground">
-                          Este custo representa as horas alocadas em motivos de não-trabalho. Ative "Com Rateio" para distribuir proporcionalmente entre os projetos.
-                        </p>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                );
-              })()}
             </div>
           )}
         </>
