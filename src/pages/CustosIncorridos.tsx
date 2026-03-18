@@ -377,47 +377,40 @@ const CustosIncorridos = () => {
         </div>
       </div>
 
-      {/* View mode tabs */}
-      <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setViewMode('projetos')}
-          className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            viewMode === 'projetos'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
+      {/* View mode tabs + rateio toggle */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
+          <button
+            onClick={() => setViewMode('projetos')}
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+              viewMode === 'projetos'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Relação de Projetos
+          </button>
+          <button
+            onClick={() => setViewMode('medias')}
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+              viewMode === 'medias'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Média de Custos
+          </button>
+        </div>
+        <Button
+          variant={incluirRateio ? "default" : "outline"}
+          size="sm"
+          onClick={() => setIncluirRateio(!incluirRateio)}
         >
-          Relação de Projetos
-        </button>
-        <button
-          onClick={() => setViewMode('medias')}
-          className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            viewMode === 'medias'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Média de Custos
-        </button>
+          {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
+        </Button>
       </div>
-
-      {/* Content based on view mode */}
-      {viewMode === 'projetos' ? (
-        <>
-          {/* Toggle rateio */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant={incluirRateio ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIncluirRateio(!incluirRateio)}
-            >
-              {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
-            </Button>
-          </div>
-
-          {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
           ) : custosPorDemanda.length === 0 ? (
             <div className="bg-card border rounded-lg p-12 text-center">
