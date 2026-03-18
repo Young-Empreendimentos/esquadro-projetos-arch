@@ -35,7 +35,8 @@ const CustosIncorridos = () => {
   // Sort, collapse & view mode
   const [sortBy, setSortBy] = useState<'custo' | 'horas'>('custo');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'projetos' | 'medias' | 'rateio'>('projetos');
+  const [viewMode, setViewMode] = useState<'projetos' | 'medias'>('projetos');
+  const [incluirRateio, setIncluirRateio] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
