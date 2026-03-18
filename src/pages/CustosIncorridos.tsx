@@ -142,18 +142,19 @@ const CustosIncorridos = () => {
 
   // Average cost by project type
   const mediasPorTipo = useMemo(() => {
+    const source = incluirRateio ? rateioData : custosPorDemanda;
     const map: Record<string, { nome: string; total: number; count: number }> = {};
-    custosPorDemanda.forEach((d: any) => {
+    source.forEach((d: any) => {
       const tipoNome = d.tipo_projeto?.nome || 'Sem tipo';
       const tipoId = d.tipo_projeto?.id || 'sem';
       if (!map[tipoId]) map[tipoId] = { nome: tipoNome, total: 0, count: 0 };
-      map[tipoId].total += d.custoTotal;
+      map[tipoId].total += incluirRateio ? (d.custoComRateio || d.custoTotal) : d.custoTotal;
       map[tipoId].count += 1;
     });
     return Object.values(map)
       .map(m => ({ ...m, media: m.count > 0 ? m.total / m.count : 0 }))
       .sort((a, b) => b.media - a.media);
-  }, [custosPorDemanda]);
+  }, [custosPorDemanda, rateioData, incluirRateio]);
 
   // Rateio de horas não trabalhadas
   const rateioData = useMemo(() => {
