@@ -435,6 +435,39 @@ const CustosIncorridos = () => {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Non-work as pseudo-project FIRST when NOT using rateio */}
+              {!incluirRateio && totalNonWorkFiltered > 0 && (() => {
+                const isOpen = openIds.has('__nao_trabalho__');
+                return (
+                  <Collapsible open={isOpen} onOpenChange={() => toggleOpen('__nao_trabalho__')}>
+                    <CollapsibleTrigger asChild>
+                      <div className="bg-card border rounded-lg px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors border-dashed">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          }
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate text-muted-foreground">Horas Não-Trabalho</p>
+                            <span className="text-xs text-muted-foreground">{totalNonWorkFiltered.toFixed(1)}h no período</span>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4 text-muted-foreground">
+                          R$ {nonWorkCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-card border border-t-0 border-dashed rounded-b-lg px-5 pb-4 pt-2 -mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Este custo representa as horas alocadas em motivos de não-trabalho. Ative "Com Rateio" para distribuir proporcionalmente entre os projetos.
+                        </p>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })()}
+
               {(incluirRateio ? rateioData : custosPorDemanda).map((d: any) => {
                 const isOpen = openIds.has(d.id);
                 const displayCusto = incluirRateio ? d.custoComRateio : d.custoTotal;
@@ -505,49 +538,6 @@ const CustosIncorridos = () => {
                   </Collapsible>
                 );
               })}
-
-              {/* Non-work as pseudo-project when NOT using rateio */}
-              {!incluirRateio && totalNonWorkFiltered > 0 && (() => {
-                const nonWorkCost = (() => {
-                  let nw = horas.filter((h: any) => h.motivo_nao_trabalho_id != null);
-                  if (dateFrom) nw = nw.filter((h: any) => h.data >= format(dateFrom, 'yyyy-MM-dd'));
-                  if (dateTo) nw = nw.filter((h: any) => h.data <= format(dateTo, 'yyyy-MM-dd'));
-                  if (selArqs.length > 0) nw = nw.filter((h: any) => selArqs.includes(h.user_id));
-                  return nw.reduce((s: number, h: any) => {
-                    const usr = usuarios.find((u: any) => u.id === h.user_id);
-                    return s + (h.horas || 0) * (usr?.custo_hora || 0);
-                  }, 0);
-                })();
-                const isOpen = openIds.has('__nao_trabalho__');
-                return (
-                  <Collapsible open={isOpen} onOpenChange={() => toggleOpen('__nao_trabalho__')}>
-                    <CollapsibleTrigger asChild>
-                      <div className="bg-card border rounded-lg px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors border-dashed">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {isOpen
-                            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          }
-                          <div className="min-w-0">
-                            <p className="font-semibold truncate text-muted-foreground">Horas Não-Trabalho</p>
-                            <span className="text-xs text-muted-foreground">{totalNonWorkFiltered.toFixed(1)}h no período</span>
-                          </div>
-                        </div>
-                        <p className="text-lg font-bold tabular-nums whitespace-nowrap ml-4 text-muted-foreground">
-                          R$ {nonWorkCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="bg-card border border-t-0 border-dashed rounded-b-lg px-5 pb-4 pt-2 -mt-1">
-                        <p className="text-xs text-muted-foreground">
-                          Este custo representa as horas alocadas em motivos de não-trabalho. Ative "Com Rateio" para distribuir proporcionalmente entre os projetos.
-                        </p>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                );
-              })()}
             </div>
           )}
         </>
