@@ -411,6 +411,11 @@ const CustosIncorridos = () => {
           {incluirRateio ? 'Com Rateio de Não-Trabalho' : 'Sem Rateio de Não-Trabalho'}
         </Button>
       </div>
+
+      {/* Content based on view mode */}
+      {viewMode === 'projetos' ? (
+        <>
+          {loading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
           ) : custosPorDemanda.length === 0 ? (
             <div className="bg-card border rounded-lg p-12 text-center">
