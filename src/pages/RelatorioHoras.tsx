@@ -338,30 +338,25 @@ const RelatorioHoras = () => {
                               const isWeekend = isSaturday(day) || isSunday(day);
                               const obs = line.observacoes?.[dateStr];
 
-                              const cell = (
+                              return (
                                 <td key={i} className={cn('px-1 py-1.5 text-center text-[11px] tabular-nums', isWeekend && 'bg-muted/20')}>
                                   {val > 0 ? (
                                     obs ? (
-                                      <span className="underline decoration-dotted cursor-help">{val}</span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="underline decoration-dotted cursor-help">{val}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-[280px] text-xs">
+                                          <p className="font-medium mb-0.5">Atividade administrativa:</p>
+                                          <p>{obs}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     ) : val
                                   ) : (
                                     <span className="text-muted-foreground/20">—</span>
                                   )}
                                 </td>
                               );
-
-                              if (obs && val > 0) {
-                                return (
-                                  <Tooltip key={i}>
-                                    <TooltipTrigger asChild>{cell}</TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-[280px] text-xs">
-                                      <p className="font-medium mb-0.5">Atividade administrativa:</p>
-                                      <p>{obs}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                );
-                              }
-                              return cell;
                             })}
                             <td className="px-3 py-1.5 text-center text-xs tabular-nums text-muted-foreground">
                               {line.total > 0 ? `${line.total}h` : '—'}
