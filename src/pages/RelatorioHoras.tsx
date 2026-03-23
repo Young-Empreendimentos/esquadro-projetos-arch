@@ -302,8 +302,7 @@ const RelatorioHoras = () => {
                               }
                               <span>{usr.nome}</span>
                               <span className="text-muted-foreground font-normal ml-1">
-                                ({usr.demCount} {usr.demCount === 1 ? 'projeto' : 'projetos'}
-                                {motCount > 0 && ` · ${motCount} não-trabalho`})
+                                ({usr.demCount} {usr.demCount === 1 ? 'projeto' : 'projetos'})
                               </span>
                             </div>
                           </td>
