@@ -164,7 +164,7 @@ const RelatorioHoras = () => {
           }
         });
         const total = Object.values(horasPorDia).reduce((s, h) => s + h, 0);
-        lines.push({ key: `mot-${mId}`, label: `🚫 ${label}`, horasPorDia, total, type: 'motivo', observacoes });
+        lines.push({ key: `mot-${mId}`, label, horasPorDia, total, type: 'motivo', observacoes });
       });
 
       lines.sort((a, b) => {
