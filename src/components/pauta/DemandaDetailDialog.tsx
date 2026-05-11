@@ -47,6 +47,10 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [addingImpugnacao, setAddingImpugnacao] = useState(false);
   const [showImpugnacaoForm, setShowImpugnacaoForm] = useState(false);
   const [horasConsumidas, setHorasConsumidas] = useState<number>(0);
+  const [editingPrazo, setEditingPrazo] = useState(false);
+  const [prazoValue, setPrazoValue] = useState('');
+  const [editingConclusao, setEditingConclusao] = useState(false);
+  const [conclusaoValue, setConclusaoValue] = useState('');
 
   const canEditInstrucoes = isAdmin || profile?.role === 'arquiteta';
 
@@ -199,6 +203,55 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     }
   };
 
+  const handleSavePrazo = async () => {
+    if (!demanda) return;
+    const value = prazoValue || null;
+    const { error } = await supabase
+      .from('esquadro_demandas')
+      .update({ prazo: value })
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar prazo', description: error.message, variant: 'destructive' });
+    } else {
+      demanda.prazo = value;
+      setEditingPrazo(false);
+      onRefresh?.();
+    }
+  };
+
+  const handleSaveConclusao = async () => {
+    if (!demanda) return;
+    const value = conclusaoValue || null;
+    const update: any = { data_conclusao: value };
+    // If data_conclusao is set, force status to "Concluído"
+    if (value) {
+      const { data: concluido } = await supabase
+        .from('esquadro_status')
+        .select('id, nome')
+        .ilike('nome', 'Concluído')
+        .limit(1)
+        .maybeSingle();
+      if (concluido?.id) {
+        update.status_id = concluido.id;
+      }
+    }
+    const { error } = await supabase
+      .from('esquadro_demandas')
+      .update(update)
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar conclusão', description: error.message, variant: 'destructive' });
+    } else {
+      demanda.data_conclusao = value;
+      if (update.status_id) {
+        demanda.status_id = update.status_id;
+        if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
+      }
+      setEditingConclusao(false);
+      onRefresh?.();
+    }
+  };
+
   if (!demanda) return null;
 
   return (
@@ -225,10 +278,55 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </SelectContent>
             </Select>
           </div>
-          <DialogDescription className="flex items-center gap-2 text-sm">
+          <DialogDescription className="flex items-center gap-2 text-sm flex-wrap">
             {demanda.tipo_projeto?.nome || '—'} · Status: {demanda.status?.nome || '—'}
-            {demanda.prazo && (
-              <> · Prazo: {format(new Date(demanda.prazo), 'dd/MM/yyyy')}</>
+            {editingPrazo ? (
+              <span className="inline-flex items-center gap-1">
+                · Prazo:
+                <Input
+                  type="date"
+                  value={prazoValue}
+                  onChange={(e) => setPrazoValue(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSavePrazo}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingPrazo(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : (
+              <span
+                className="cursor-pointer hover:underline"
+                onClick={() => { setPrazoValue(demanda.prazo || ''); setEditingPrazo(true); }}
+              >
+                · Prazo: {demanda.prazo ? format(new Date(demanda.prazo + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+              </span>
+            )}
+            {editingConclusao ? (
+              <span className="inline-flex items-center gap-1">
+                · Conclusão:
+                <Input
+                  type="date"
+                  value={conclusaoValue}
+                  onChange={(e) => setConclusaoValue(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSaveConclusao}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingConclusao(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : (
+              <span
+                className="cursor-pointer hover:underline"
+                onClick={() => { setConclusaoValue(demanda.data_conclusao || ''); setEditingConclusao(true); }}
+              >
+                · Conclusão: {demanda.data_conclusao ? format(new Date(demanda.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+              </span>
             )}
             {editingHoras ? (
               <span className="inline-flex items-center gap-1 ml-1">
