@@ -2706,6 +2706,7 @@ export type Database = {
         Row: {
           arquiteta_id: string | null
           created_at: string
+          data_conclusao: string | null
           data_solicitacao: string
           empreendimento_id: string
           horas_estimadas: number | null
@@ -2722,6 +2723,7 @@ export type Database = {
         Insert: {
           arquiteta_id?: string | null
           created_at?: string
+          data_conclusao?: string | null
           data_solicitacao?: string
           empreendimento_id: string
           horas_estimadas?: number | null
@@ -2738,6 +2740,7 @@ export type Database = {
         Update: {
           arquiteta_id?: string | null
           created_at?: string
+          data_conclusao?: string | null
           data_solicitacao?: string
           empreendimento_id?: string
           horas_estimadas?: number | null

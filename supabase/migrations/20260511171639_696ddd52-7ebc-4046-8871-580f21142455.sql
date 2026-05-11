@@ -1,0 +1,1 @@
+ALTER TABLE public.esquadro_demandas ADD COLUMN IF NOT EXISTS data_conclusao DATE;
