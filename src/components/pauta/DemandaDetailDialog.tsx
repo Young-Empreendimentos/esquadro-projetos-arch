@@ -203,6 +203,55 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     }
   };
 
+  const handleSavePrazo = async () => {
+    if (!demanda) return;
+    const value = prazoValue || null;
+    const { error } = await supabase
+      .from('esquadro_demandas')
+      .update({ prazo: value })
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar prazo', description: error.message, variant: 'destructive' });
+    } else {
+      demanda.prazo = value;
+      setEditingPrazo(false);
+      onRefresh?.();
+    }
+  };
+
+  const handleSaveConclusao = async () => {
+    if (!demanda) return;
+    const value = conclusaoValue || null;
+    const update: any = { data_conclusao: value };
+    // If data_conclusao is set, force status to "Concluído"
+    if (value) {
+      const { data: concluido } = await supabase
+        .from('esquadro_status')
+        .select('id, nome')
+        .ilike('nome', 'Concluído')
+        .limit(1)
+        .maybeSingle();
+      if (concluido?.id) {
+        update.status_id = concluido.id;
+      }
+    }
+    const { error } = await supabase
+      .from('esquadro_demandas')
+      .update(update)
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar conclusão', description: error.message, variant: 'destructive' });
+    } else {
+      demanda.data_conclusao = value;
+      if (update.status_id) {
+        demanda.status_id = update.status_id;
+        if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
+      }
+      setEditingConclusao(false);
+      onRefresh?.();
+    }
+  };
+
   if (!demanda) return null;
 
   return (
