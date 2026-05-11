@@ -278,10 +278,55 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </SelectContent>
             </Select>
           </div>
-          <DialogDescription className="flex items-center gap-2 text-sm">
+          <DialogDescription className="flex items-center gap-2 text-sm flex-wrap">
             {demanda.tipo_projeto?.nome || '—'} · Status: {demanda.status?.nome || '—'}
-            {demanda.prazo && (
-              <> · Prazo: {format(new Date(demanda.prazo), 'dd/MM/yyyy')}</>
+            {editingPrazo ? (
+              <span className="inline-flex items-center gap-1">
+                · Prazo:
+                <Input
+                  type="date"
+                  value={prazoValue}
+                  onChange={(e) => setPrazoValue(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSavePrazo}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingPrazo(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : (
+              <span
+                className="cursor-pointer hover:underline"
+                onClick={() => { setPrazoValue(demanda.prazo || ''); setEditingPrazo(true); }}
+              >
+                · Prazo: {demanda.prazo ? format(new Date(demanda.prazo + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+              </span>
+            )}
+            {editingConclusao ? (
+              <span className="inline-flex items-center gap-1">
+                · Conclusão:
+                <Input
+                  type="date"
+                  value={conclusaoValue}
+                  onChange={(e) => setConclusaoValue(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSaveConclusao}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingConclusao(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : (
+              <span
+                className="cursor-pointer hover:underline"
+                onClick={() => { setConclusaoValue(demanda.data_conclusao || ''); setEditingConclusao(true); }}
+              >
+                · Conclusão: {demanda.data_conclusao ? format(new Date(demanda.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+              </span>
             )}
             {editingHoras ? (
               <span className="inline-flex items-center gap-1 ml-1">
