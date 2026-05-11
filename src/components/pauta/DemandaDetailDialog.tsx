@@ -298,10 +298,10 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </span>
             ) : (
               <span
-                className="cursor-pointer hover:underline"
-                onClick={() => { setPrazoValue(demanda.prazo || ''); setEditingPrazo(true); }}
+                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
+                onClick={isAdmin ? () => { setPrazoValue(demanda.prazo || ''); setEditingPrazo(true); } : undefined}
               >
-                · Prazo: {demanda.prazo ? format(new Date(demanda.prazo + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+                · Prazo: {demanda.prazo ? format(new Date(demanda.prazo + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
               </span>
             )}
             {editingConclusao ? (
