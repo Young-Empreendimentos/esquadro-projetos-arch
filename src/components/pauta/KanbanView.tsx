@@ -65,9 +65,21 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     e.stopPropagation();
     if (!draggedId) return;
 
+    const targetStatus = statusList.find((s) => s.id === statusId);
+    const isConcluido = targetStatus?.nome?.toLowerCase() === 'concluído';
+    const update: any = { status_id: statusId };
+    if (isConcluido) {
+      const dem = demandas.find((d) => d.id === draggedId);
+      if (!dem?.data_conclusao) {
+        update.data_conclusao = new Date().toISOString().split('T')[0];
+      }
+    } else {
+      update.data_conclusao = null;
+    }
+
     const { error } = await supabase
       .from('esquadro_demandas')
-      .update({ status_id: statusId })
+      .update(update)
       .eq('id', draggedId);
 
     if (error) {
