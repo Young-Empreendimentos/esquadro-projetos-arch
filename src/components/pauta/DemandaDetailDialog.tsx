@@ -47,6 +47,10 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [addingImpugnacao, setAddingImpugnacao] = useState(false);
   const [showImpugnacaoForm, setShowImpugnacaoForm] = useState(false);
   const [horasConsumidas, setHorasConsumidas] = useState<number>(0);
+  const [editingPrazo, setEditingPrazo] = useState(false);
+  const [prazoValue, setPrazoValue] = useState('');
+  const [editingConclusao, setEditingConclusao] = useState(false);
+  const [conclusaoValue, setConclusaoValue] = useState('');
 
   const canEditInstrucoes = isAdmin || profile?.role === 'arquiteta';
 
