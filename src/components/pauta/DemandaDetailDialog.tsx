@@ -322,10 +322,10 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </span>
             ) : (
               <span
-                className="cursor-pointer hover:underline"
-                onClick={() => { setConclusaoValue(demanda.data_conclusao || ''); setEditingConclusao(true); }}
+                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
+                onClick={isAdmin ? () => { setConclusaoValue(demanda.data_conclusao || ''); setEditingConclusao(true); } : undefined}
               >
-                · Conclusão: {demanda.data_conclusao ? format(new Date(demanda.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy') : 'Definir'}
+                · Conclusão: {demanda.data_conclusao ? format(new Date(demanda.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
               </span>
             )}
             {editingHoras ? (
