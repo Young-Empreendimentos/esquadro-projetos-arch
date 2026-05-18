@@ -40,7 +40,25 @@ const CustosIncorridos = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [demRes, usrRes, horasRes, empRes, statusRes, tipoRes] = await Promise.all([
+      // Fetch all hour records paginated to bypass Supabase 1000-row default limit
+      const fetchAllHoras = async () => {
+        const pageSize = 1000;
+        let from = 0;
+        const all: any[] = [];
+        while (true) {
+          const { data, error } = await supabase
+            .from('esquadro_registro_horas')
+            .select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id')
+            .range(from, from + pageSize - 1);
+          if (error || !data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return all;
+      };
+
+      const [demRes, usrRes, horasAll, empRes, statusRes, tipoRes] = await Promise.all([
         supabase.from('esquadro_demandas').select(`
           id, horas_estimadas, arquiteta_id,
           empreendimento:esquadro_empreendimentos(id, nome),
@@ -48,7 +66,7 @@ const CustosIncorridos = () => {
           status:esquadro_status(id, nome)
         `),
         supabase.from('esquadro_profiles').select('id, nome, email, custo_hora'),
-        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id'),
+        fetchAllHoras(),
         supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
         supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
         supabase.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
@@ -56,7 +74,7 @@ const CustosIncorridos = () => {
 
       setDemandas(demRes.data || []);
       setUsuarios(usrRes.data || []);
-      setHoras(horasRes.data || []);
+      setHoras(horasAll);
       setEmpreendimentos(empRes.data || []);
       setStatusList(statusRes.data || []);
       setTiposProjeto(tipoRes.data || []);
@@ -235,39 +253,58 @@ const CustosIncorridos = () => {
     options,
     selected,
     onToggle,
+    searchable = false,
   }: {
     label: string;
     options: { id: string; nome: string }[];
     selected: string[];
     onToggle: (id: string) => void;
-  }) => (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 justify-between gap-1 min-w-[140px]">
-          <span className="truncate">
-            {selected.length === 0 ? label : `${label} (${selected.length})`}
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-2 pointer-events-auto" align="start">
-        <div className="space-y-1 max-h-60 overflow-y-auto">
-          {options.map(opt => (
-            <label
-              key={opt.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm cursor-pointer hover:bg-accent"
-            >
-              <Checkbox
-                checked={selected.includes(opt.id)}
-                onCheckedChange={() => onToggle(opt.id)}
-              />
-              <span className="truncate">{opt.nome}</span>
-            </label>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
+    searchable?: boolean;
+  }) => {
+    const [search, setSearch] = useState('');
+    const filtered = searchable && search
+      ? options.filter(o => (o.nome || '').toLowerCase().includes(search.toLowerCase()))
+      : options;
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 justify-between gap-1 min-w-[140px]">
+            <span className="truncate">
+              {selected.length === 0 ? label : `${label} (${selected.length})`}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2 pointer-events-auto" align="start">
+          {searchable && (
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full h-8 px-2 mb-2 text-sm border rounded-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          )}
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">Nenhum resultado</div>
+            ) : filtered.map(opt => (
+              <label
+                key={opt.id}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm cursor-pointer hover:bg-accent"
+              >
+                <Checkbox
+                  checked={selected.includes(opt.id)}
+                  onCheckedChange={() => onToggle(opt.id)}
+                />
+                <span className="truncate">{opt.nome}</span>
+              </label>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -337,6 +374,7 @@ const CustosIncorridos = () => {
               options={empreendimentos}
               selected={selEmps}
               onToggle={(id) => toggleFilter(selEmps, setSelEmps, id)}
+              searchable
             />
             <MultiSelectFilter
               label="Status"
