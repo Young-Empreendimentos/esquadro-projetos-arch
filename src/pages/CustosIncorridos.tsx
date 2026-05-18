@@ -40,7 +40,25 @@ const CustosIncorridos = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [demRes, usrRes, horasRes, empRes, statusRes, tipoRes] = await Promise.all([
+      // Fetch all hour records paginated to bypass Supabase 1000-row default limit
+      const fetchAllHoras = async () => {
+        const pageSize = 1000;
+        let from = 0;
+        const all: any[] = [];
+        while (true) {
+          const { data, error } = await supabase
+            .from('esquadro_registro_horas')
+            .select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id')
+            .range(from, from + pageSize - 1);
+          if (error || !data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return all;
+      };
+
+      const [demRes, usrRes, horasAll, empRes, statusRes, tipoRes] = await Promise.all([
         supabase.from('esquadro_demandas').select(`
           id, horas_estimadas, arquiteta_id,
           empreendimento:esquadro_empreendimentos(id, nome),
@@ -48,7 +66,7 @@ const CustosIncorridos = () => {
           status:esquadro_status(id, nome)
         `),
         supabase.from('esquadro_profiles').select('id, nome, email, custo_hora'),
-        supabase.from('esquadro_registro_horas').select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id'),
+        fetchAllHoras(),
         supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
         supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
         supabase.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
@@ -56,7 +74,7 @@ const CustosIncorridos = () => {
 
       setDemandas(demRes.data || []);
       setUsuarios(usrRes.data || []);
-      setHoras(horasRes.data || []);
+      setHoras(horasAll);
       setEmpreendimentos(empRes.data || []);
       setStatusList(statusRes.data || []);
       setTiposProjeto(tipoRes.data || []);
