@@ -374,6 +374,7 @@ const CustosIncorridos = () => {
               options={empreendimentos}
               selected={selEmps}
               onToggle={(id) => toggleFilter(selEmps, setSelEmps, id)}
+              searchable
             />
             <MultiSelectFilter
               label="Status"
