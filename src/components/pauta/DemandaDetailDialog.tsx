@@ -61,7 +61,57 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     fetchComentarios();
     fetchImpugnacoes();
     fetchHorasConsumidas();
+    fetchStatusHistory();
   }, [demanda, open]);
+
+  const fetchStatusHistory = async () => {
+    if (!demanda) return;
+    const [histRes, statusRes] = await Promise.all([
+      supabase
+        .from('esquadro_status_historico')
+        .select('*')
+        .eq('demanda_id', demanda.id)
+        .order('created_at', { ascending: false }),
+      supabase.from('esquadro_status').select('id, nome'),
+    ]);
+    const sMap: Record<string, string> = {};
+    (statusRes.data || []).forEach((s: any) => { sMap[s.id] = s.nome; });
+    const hist = histRes.data || [];
+    // attach user names
+    const userIds = [...new Set(hist.map((h: any) => h.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profs } = await supabase.from('esquadro_profiles').select('id, nome, email').in('id', userIds);
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      hist.forEach((h: any) => { h.usuario = pMap.get(h.user_id) || null; });
+    }
+    setStatusMap(sMap);
+    setStatusHistory(hist);
+  };
+
+  const handleDeleteHistoryEntry = async (entryId: string) => {
+    if (!demanda) return;
+    if (!confirm('Excluir esta mudança de status? O status atual será revertido para a mudança mais recente restante.')) return;
+    const { error } = await supabase.from('esquadro_status_historico').delete().eq('id', entryId);
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+      return;
+    }
+    // Re-evaluate current status from remaining history
+    const { data: remaining } = await supabase
+      .from('esquadro_status_historico')
+      .select('status_novo_id')
+      .eq('demanda_id', demanda.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (remaining && remaining[0]) {
+      const newStatusId = remaining[0].status_novo_id;
+      await supabase.from('esquadro_demandas').update({ status_id: newStatusId }).eq('id', demanda.id);
+      demanda.status_id = newStatusId;
+      if (demanda.status) demanda.status = { ...demanda.status, id: newStatusId, nome: statusMap[newStatusId] || '' };
+    }
+    fetchStatusHistory();
+    onRefresh?.();
+  };
 
   const fetchComentarios = async () => {
     if (!demanda) return;
