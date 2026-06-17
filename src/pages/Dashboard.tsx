@@ -206,6 +206,20 @@ const Dashboard = () => {
       setAllHorasRaw(allHorasRes.data || []);
       setAllArquitetas(arqRes.data || []);
 
+      // Fetch status history (paginated to avoid 1000-row cap)
+      const histAll: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('esquadro_status_historico')
+          .select('demanda_id, status_novo_id, created_at')
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        histAll.push(...data);
+        if (data.length < pageSize) break;
+      }
+      setAllStatusHistRaw(histAll);
+
       setLoading(false);
     };
     fetchData();
