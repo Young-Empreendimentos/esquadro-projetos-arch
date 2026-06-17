@@ -244,50 +244,63 @@ const Dashboard = () => {
     const semEnd = isFirstHalf ? `${year}-06-30` : `${year}-12-31`;
     const semLabel = isFirstHalf ? `1º Semestre ${year}` : `2º Semestre ${year}`;
 
+    // Eligible target statuses: Concluído, Em análise interno, Em análise externo
+    const targetStatusIds = allStatusRaw
+      .filter((s: any) => {
+        const n = (s.nome || '').toLowerCase();
+        return n.includes('conclu') || n.includes('análise interno') || n.includes('analise interno')
+          || n.includes('análise externo') || n.includes('analise externo');
+      })
+      .map((s: any) => s.id);
     const concluidoIds = allStatusRaw
-      .filter((s: any) => s.nome.toLowerCase().includes('conclu'))
+      .filter((s: any) => (s.nome || '').toLowerCase().includes('conclu'))
       .map((s: any) => s.id);
 
-    // Build last hour date per demanda (proxy for completion date)
-    const lastDateMap: Record<string, string> = {};
-    allHorasRaw.forEach((h: any) => {
-      if (!lastDateMap[h.demanda_id] || h.data > lastDateMap[h.demanda_id]) {
-        lastDateMap[h.demanda_id] = h.data;
+    // Use status history: for each demanda, earliest date it entered a target status
+    const completionMap: Record<string, string> = {};
+    allStatusHistRaw.forEach((h: any) => {
+      if (!targetStatusIds.includes(h.status_novo_id)) return;
+      const dateStr = (h.created_at || '').slice(0, 10);
+      if (!dateStr) return;
+      if (!completionMap[h.demanda_id] || dateStr < completionMap[h.demanda_id]) {
+        completionMap[h.demanda_id] = dateStr;
       }
     });
 
-    // Filter demandas: concluded, with prazo, completion date in semester
+    // Filter demandas: ever reached target status, with prazo, completion date in semester
     const elegiveis = allDemandasRaw.filter((d: any) => {
-      if (!concluidoIds.includes(d.status_id)) return false;
       if (!d.prazo) return false;
       if (indicadorArqFilter !== 'all' && d.arquiteta_id !== indicadorArqFilter) return false;
-      const completionDate = lastDateMap[d.id];
-      if (!completionDate) return false;
-      return completionDate >= semStart && completionDate <= semEnd;
+      const completionDate = completionMap[d.id];
+      // Fallback: if demanda is currently in a target status but has no history entry, treat created_at as the completion date
+      const effectiveDate = completionDate
+        || (targetStatusIds.includes(d.status_id) ? (d.created_at || '').slice(0, 10) : null);
+      if (!effectiveDate) return false;
+      return effectiveDate >= semStart && effectiveDate <= semEnd;
     });
 
-    const noPrazo = elegiveis.filter((d: any) => {
-      const completionDate = lastDateMap[d.id];
-      return completionDate <= d.prazo;
-    });
+    const getEffectiveDate = (d: any) =>
+      completionMap[d.id]
+      || (targetStatusIds.includes(d.status_id) ? (d.created_at || '').slice(0, 10) : '');
+
+    const noPrazo = elegiveis.filter((d: any) => getEffectiveDate(d) <= d.prazo);
 
     const detalhes = elegiveis.map((d: any) => {
-      const completionDate = lastDateMap[d.id];
-      const onTime = completionDate <= d.prazo;
+      const completionDate = getEffectiveDate(d);
       return {
         id: d.id,
         empreendimento: d.empreendimento?.nome || '—',
         tipo: d.tipo_projeto?.nome || '—',
         prazo: d.prazo,
         dataConclusao: completionDate,
-        noPrazo: onTime,
+        noPrazo: completionDate <= d.prazo,
       };
     });
 
     const percentual = elegiveis.length > 0 ? (noPrazo.length / elegiveis.length) * 100 : null;
 
     return { semLabel, total: elegiveis.length, noPrazo: noPrazo.length, percentual, detalhes };
-  }, [allDemandasRaw, allStatusRaw, allHorasRaw, indicadorArqFilter]);
+  }, [allDemandasRaw, allStatusRaw, allStatusHistRaw, indicadorArqFilter]);
 
   return (
     <div className="space-y-6 animate-fade-in">
