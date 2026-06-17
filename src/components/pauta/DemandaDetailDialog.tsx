@@ -51,6 +51,8 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [prazoValue, setPrazoValue] = useState('');
   const [editingConclusao, setEditingConclusao] = useState(false);
   const [conclusaoValue, setConclusaoValue] = useState('');
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
 
   const canEditInstrucoes = isAdmin || profile?.role === 'arquiteta';
 
