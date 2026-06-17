@@ -294,10 +294,19 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     if (error) {
       toast({ title: 'Erro ao salvar conclusão', description: error.message, variant: 'destructive' });
     } else {
+      const previousStatusId = demanda.status_id;
       demanda.data_conclusao = value;
-      if (update.status_id) {
+      if (update.status_id && update.status_id !== previousStatusId) {
+        await supabase.from('esquadro_status_historico').insert({
+          demanda_id: demanda.id,
+          status_anterior_id: previousStatusId || null,
+          status_novo_id: update.status_id,
+          observacao: 'Status alterado automaticamente ao definir data de conclusão.',
+          user_id: user?.id || null,
+        });
         demanda.status_id = update.status_id;
         if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
+        fetchStatusHistory();
       }
       setEditingConclusao(false);
       onRefresh?.();
