@@ -381,14 +381,30 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
                   <X className="w-3 h-3" />
                 </Button>
               </span>
-            ) : (
-              <span
-                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
-                onClick={isAdmin ? () => { setConclusaoValue(demanda.data_conclusao || ''); setEditingConclusao(true); } : undefined}
-              >
-                · Conclusão: {demanda.data_conclusao ? format(new Date(demanda.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
-              </span>
-            )}
+            ) : (() => {
+              const isAndamento = (id?: string | null) =>
+                !!id && (statusMap[id] || '').toLowerCase().includes('andamento');
+              let defaultConclusao = '';
+              for (const h of statusHistory) {
+                if (isAndamento(h.status_anterior_id) && !isAndamento(h.status_novo_id)) {
+                  defaultConclusao = (h.created_at || '').slice(0, 10);
+                  break;
+                }
+              }
+              const manual = !!demanda.data_conclusao;
+              const effective = demanda.data_conclusao || defaultConclusao;
+              return (
+                <span
+                  className={isAdmin ? 'cursor-pointer hover:underline' : ''}
+                  onClick={isAdmin ? () => { setConclusaoValue(demanda.data_conclusao || defaultConclusao || ''); setEditingConclusao(true); } : undefined}
+                  title={manual ? 'Data de conclusão definida manualmente' : (defaultConclusao ? 'Última saída de "Em andamento"' : undefined)}
+                >
+                  · Conclusão: {effective
+                    ? `${format(new Date(effective + 'T00:00:00'), 'dd/MM/yyyy')}${manual ? '' : ' (auto)'}`
+                    : (isAdmin ? 'Definir' : '—')}
+                </span>
+              );
+            })()}
             {editingHoras ? (
               <span className="inline-flex items-center gap-1 ml-1">
                 · <Input
