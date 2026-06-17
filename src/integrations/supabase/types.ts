@@ -3689,6 +3689,58 @@ export type Database = {
         }
         Relationships: []
       }
+      esquadro_status_historico: {
+        Row: {
+          created_at: string
+          demanda_id: string
+          id: string
+          observacao: string | null
+          status_anterior_id: string | null
+          status_novo_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          demanda_id: string
+          id?: string
+          observacao?: string | null
+          status_anterior_id?: string | null
+          status_novo_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string
+          id?: string
+          observacao?: string | null
+          status_anterior_id?: string | null
+          status_novo_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esquadro_status_historico_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_demandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esquadro_status_historico_status_anterior_id_fkey"
+            columns: ["status_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esquadro_status_historico_status_novo_id_fkey"
+            columns: ["status_novo_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       esquadro_tipos_projeto: {
         Row: {
           ativo: boolean
