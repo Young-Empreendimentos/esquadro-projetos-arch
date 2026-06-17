@@ -92,21 +92,11 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     if (!pendingChange) return;
     setCommitting(true);
 
-    const { demandaId, statusId, statusName, previousStatusId } = pendingChange;
-    const isConcluido = statusName?.toLowerCase() === 'concluído';
-    const dem = demandas.find((d) => d.id === demandaId);
-    const update: any = { status_id: statusId };
-    if (isConcluido) {
-      if (!dem?.data_conclusao) {
-        update.data_conclusao = new Date().toISOString().split('T')[0];
-      }
-    } else {
-      update.data_conclusao = null;
-    }
+    const { demandaId, statusId, previousStatusId } = pendingChange;
 
     const { error } = await supabase
       .from('esquadro_demandas')
-      .update(update)
+      .update({ status_id: statusId })
       .eq('id', demandaId);
 
     if (error) {
