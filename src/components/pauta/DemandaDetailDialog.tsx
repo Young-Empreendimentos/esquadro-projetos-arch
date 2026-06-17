@@ -568,7 +568,69 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </div>
             )}
           </div>
+
+          <Separator className="my-4" />
+
+          {/* Histórico de Status - collapsed by default */}
+          <div className="space-y-2 pb-2">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded-md transition-colors px-2 py-1.5 -mx-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  Histórico de Status ({statusHistory.length})
+                </h4>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-2 mt-2">
+                  {statusHistory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma mudança registrada.</p>
+                  ) : (
+                    statusHistory.map((h) => (
+                      <div key={h.id} className="bg-card border rounded-md p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                            {h.status_anterior_id && (
+                              <>
+                                <Badge variant="outline" className="font-normal">{statusMap[h.status_anterior_id] || '—'}</Badge>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                              </>
+                            )}
+                            <Badge variant="secondary" className="font-normal">{statusMap[h.status_novo_id] || '—'}</Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </span>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteHistoryEntry(h.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {(h.observacao || h.usuario) && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {h.usuario && <span className="font-medium">{h.usuario.nome || h.usuario.email}</span>}
+                            {h.observacao && (
+                              <p className="mt-1 whitespace-pre-wrap text-foreground">{h.observacao}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
+
 
         {/* New comment */}
         <div className="flex gap-2 mt-2">
