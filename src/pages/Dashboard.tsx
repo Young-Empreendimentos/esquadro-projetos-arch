@@ -212,7 +212,8 @@ const Dashboard = () => {
       for (let from = 0; ; from += pageSize) {
         const { data, error } = await supabase
           .from('esquadro_status_historico')
-          .select('demanda_id, status_novo_id, created_at')
+          .select('demanda_id, status_anterior_id, status_novo_id, created_at')
+          .order('created_at', { ascending: true })
           .range(from, from + pageSize - 1);
         if (error || !data || data.length === 0) break;
         histAll.push(...data);
