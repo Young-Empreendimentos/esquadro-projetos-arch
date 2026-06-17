@@ -245,44 +245,56 @@ const Dashboard = () => {
     const semEnd = isFirstHalf ? `${year}-06-30` : `${year}-12-31`;
     const semLabel = isFirstHalf ? `1º Semestre ${year}` : `2º Semestre ${year}`;
 
-    // Eligible target statuses: Concluído, Em análise interno, Em análise externo
-    const targetStatusIds = allStatusRaw
-      .filter((s: any) => {
-        const n = (s.nome || '').toLowerCase();
-        return n.includes('conclu') || n.includes('análise interno') || n.includes('analise interno')
-          || n.includes('análise externo') || n.includes('analise externo');
-      })
-      .map((s: any) => s.id);
-    const concluidoIds = allStatusRaw
-      .filter((s: any) => (s.nome || '').toLowerCase().includes('conclu'))
-      .map((s: any) => s.id);
+    // "Em andamento" status ids (any case/variation)
+    const emAndamentoIds = new Set(
+      allStatusRaw
+        .filter((s: any) => (s.nome || '').toLowerCase().includes('andamento'))
+        .map((s: any) => s.id)
+    );
+    // Target statuses considered for "completion" goal (Concluído, Em análise interno/externo)
+    const targetStatusIds = new Set(
+      allStatusRaw
+        .filter((s: any) => {
+          const n = (s.nome || '').toLowerCase();
+          return n.includes('conclu') || n.includes('análise interno') || n.includes('analise interno')
+            || n.includes('análise externo') || n.includes('analise externo');
+        })
+        .map((s: any) => s.id)
+    );
 
-    // Use status history: for each demanda, earliest date it entered a target status
-    const completionMap: Record<string, string> = {};
+    // Group status history by demanda (already sorted ascending in the fetch)
+    const histByDem: Record<string, any[]> = {};
     allStatusHistRaw.forEach((h: any) => {
-      if (!targetStatusIds.includes(h.status_novo_id)) return;
-      const dateStr = (h.created_at || '').slice(0, 10);
-      if (!dateStr) return;
-      if (!completionMap[h.demanda_id] || dateStr < completionMap[h.demanda_id]) {
-        completionMap[h.demanda_id] = dateStr;
+      (histByDem[h.demanda_id] = histByDem[h.demanda_id] || []).push(h);
+    });
+
+    // For each demanda, find the last transition OUT of "em andamento"
+    const lastExitMap: Record<string, string> = {};
+    Object.entries(histByDem).forEach(([demId, arr]) => {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const h = arr[i];
+        if (h.status_anterior_id && emAndamentoIds.has(h.status_anterior_id) && !emAndamentoIds.has(h.status_novo_id)) {
+          lastExitMap[demId] = (h.created_at || '').slice(0, 10);
+          break;
+        }
       }
     });
 
-    // Filter demandas: ever reached target status, with prazo, completion date in semester
+    // Effective completion date: manual override (data_conclusao) > last exit from "em andamento"
+    const getEffectiveDate = (d: any): string => {
+      if (d.data_conclusao) return String(d.data_conclusao).slice(0, 10);
+      return lastExitMap[d.id] || '';
+    };
+
+    // Filter demandas: have prazo, currently in a target status, completion in semester
     const elegiveis = allDemandasRaw.filter((d: any) => {
       if (!d.prazo) return false;
       if (indicadorArqFilter !== 'all' && d.arquiteta_id !== indicadorArqFilter) return false;
-      const completionDate = completionMap[d.id];
-      // Fallback: if demanda is currently in a target status but has no history entry, treat created_at as the completion date
-      const effectiveDate = completionDate
-        || (targetStatusIds.includes(d.status_id) ? (d.created_at || '').slice(0, 10) : null);
-      if (!effectiveDate) return false;
-      return effectiveDate >= semStart && effectiveDate <= semEnd;
+      if (!targetStatusIds.has(d.status_id)) return false;
+      const eff = getEffectiveDate(d);
+      if (!eff) return false;
+      return eff >= semStart && eff <= semEnd;
     });
-
-    const getEffectiveDate = (d: any) =>
-      completionMap[d.id]
-      || (targetStatusIds.includes(d.status_id) ? (d.created_at || '').slice(0, 10) : '');
 
     const noPrazo = elegiveis.filter((d: any) => getEffectiveDate(d) <= d.prazo);
 
