@@ -50,6 +50,7 @@ const Dashboard = () => {
   const [allDemandasRaw, setAllDemandasRaw] = useState<any[]>([]);
   const [allStatusRaw, setAllStatusRaw] = useState<any[]>([]);
   const [allHorasRaw, setAllHorasRaw] = useState<any[]>([]);
+  const [allStatusHistRaw, setAllStatusHistRaw] = useState<any[]>([]);
   const [allArquitetas, setAllArquitetas] = useState<any[]>([]);
   const [indicadorArqFilter, setIndicadorArqFilter] = useState('all');
   const [indicadorModalOpen, setIndicadorModalOpen] = useState(false);
