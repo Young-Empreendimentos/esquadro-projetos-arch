@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight, ChevronsLeftRight, ChevronsRightLeft, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Status } from '@/types/database';
 import { toast } from '@/hooks/use-toast';
 
@@ -20,9 +23,13 @@ interface KanbanViewProps {
 }
 
 const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) => {
+  const { user } = useAuth();
   const [statusList, setStatusList] = useState<Status[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
+  const [pendingChange, setPendingChange] = useState<{ demandaId: string; statusId: string; statusName: string; previousStatusId: string | null } | null>(null);
+  const [observacao, setObservacao] = useState('');
+  const [committing, setCommitting] = useState(false);
 
   const toggleCollapse = (statusId: string) => {
     setCollapsedColumns((prev) => {
@@ -60,16 +67,36 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = async (e: React.DragEvent, statusId: string) => {
+  const handleDrop = (e: React.DragEvent, statusId: string) => {
     e.preventDefault();
     e.stopPropagation();
     if (!draggedId) return;
 
+    const dem = demandas.find((d) => d.id === draggedId);
+    if (!dem || dem.status_id === statusId) {
+      setDraggedId(null);
+      return;
+    }
     const targetStatus = statusList.find((s) => s.id === statusId);
-    const isConcluido = targetStatus?.nome?.toLowerCase() === 'concluído';
+    setPendingChange({
+      demandaId: draggedId,
+      statusId,
+      statusName: targetStatus?.nome || '',
+      previousStatusId: dem.status_id || null,
+    });
+    setObservacao('');
+    setDraggedId(null);
+  };
+
+  const commitStatusChange = async () => {
+    if (!pendingChange) return;
+    setCommitting(true);
+
+    const { demandaId, statusId, statusName, previousStatusId } = pendingChange;
+    const isConcluido = statusName?.toLowerCase() === 'concluído';
+    const dem = demandas.find((d) => d.id === demandaId);
     const update: any = { status_id: statusId };
     if (isConcluido) {
-      const dem = demandas.find((d) => d.id === draggedId);
       if (!dem?.data_conclusao) {
         update.data_conclusao = new Date().toISOString().split('T')[0];
       }
@@ -80,14 +107,26 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     const { error } = await supabase
       .from('esquadro_demandas')
       .update(update)
-      .eq('id', draggedId);
+      .eq('id', demandaId);
 
     if (error) {
       toast({ title: 'Erro ao mover', description: error.message, variant: 'destructive' });
-    } else {
-      onRefresh();
+      setCommitting(false);
+      return;
     }
-    setDraggedId(null);
+
+    await supabase.from('esquadro_status_historico').insert({
+      demanda_id: demandaId,
+      status_anterior_id: previousStatusId,
+      status_novo_id: statusId,
+      observacao: observacao.trim() || null,
+      user_id: user?.id || null,
+    });
+
+    setCommitting(false);
+    setPendingChange(null);
+    setObservacao('');
+    onRefresh();
   };
 
   if (statusList.length === 0) {
@@ -208,6 +247,33 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
           );
         })}
       </div>
+
+      {/* Confirm status change with optional observation */}
+      <Dialog open={!!pendingChange} onOpenChange={(open) => { if (!open && !committing) { setPendingChange(null); setObservacao(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mover para "{pendingChange?.statusName}"</DialogTitle>
+            <DialogDescription>
+              Adicione uma observação (opcional) sobre essa mudança de status.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Observação opcional..."
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            className="min-h-[80px]"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setPendingChange(null); setObservacao(''); }} disabled={committing}>
+              Cancelar
+            </Button>
+            <Button onClick={commitStatusChange} disabled={committing}>
+              {committing ? 'Salvando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
