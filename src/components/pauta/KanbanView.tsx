@@ -92,7 +92,7 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     if (!pendingChange) return;
     setCommitting(true);
 
-    const { demandaId, statusId, previousStatusId } = pendingChange;
+    const { demandaId, statusId, previousStatusId, statusName } = pendingChange;
 
     const { error } = await supabase
       .from('esquadro_demandas')
@@ -105,13 +105,25 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
       return;
     }
 
+    const obs = observacao.trim();
+
     await supabase.from('esquadro_status_historico').insert({
       demanda_id: demandaId,
       status_anterior_id: previousStatusId,
       status_novo_id: statusId,
-      observacao: observacao.trim() || null,
+      observacao: obs || null,
       user_id: user?.id || null,
     });
+
+    // Also publish observation as a comment so it appears in Comentários
+    if (obs) {
+      const previousStatusName = statusList.find((s) => s.id === previousStatusId)?.nome || '—';
+      await supabase.from('esquadro_comentarios').insert({
+        demanda_id: demandaId,
+        user_id: user?.id || null,
+        conteudo: `[Mudança de status: ${previousStatusName} → ${statusName}] ${obs}`,
+      });
+    }
 
     setCommitting(false);
     setPendingChange(null);
