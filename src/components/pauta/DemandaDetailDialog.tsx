@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Send, Pencil, Check, X, AlertTriangle, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Send, Pencil, Check, X, AlertTriangle, Plus, Trash2, ChevronDown, History, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -51,6 +51,8 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [prazoValue, setPrazoValue] = useState('');
   const [editingConclusao, setEditingConclusao] = useState(false);
   const [conclusaoValue, setConclusaoValue] = useState('');
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
 
   const canEditInstrucoes = isAdmin || profile?.role === 'arquiteta';
 
@@ -59,7 +61,57 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     fetchComentarios();
     fetchImpugnacoes();
     fetchHorasConsumidas();
+    fetchStatusHistory();
   }, [demanda, open]);
+
+  const fetchStatusHistory = async () => {
+    if (!demanda) return;
+    const [histRes, statusRes] = await Promise.all([
+      supabase
+        .from('esquadro_status_historico')
+        .select('*')
+        .eq('demanda_id', demanda.id)
+        .order('created_at', { ascending: false }),
+      supabase.from('esquadro_status').select('id, nome'),
+    ]);
+    const sMap: Record<string, string> = {};
+    (statusRes.data || []).forEach((s: any) => { sMap[s.id] = s.nome; });
+    const hist = histRes.data || [];
+    // attach user names
+    const userIds = [...new Set(hist.map((h: any) => h.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profs } = await supabase.from('esquadro_profiles').select('id, nome, email').in('id', userIds);
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      hist.forEach((h: any) => { h.usuario = pMap.get(h.user_id) || null; });
+    }
+    setStatusMap(sMap);
+    setStatusHistory(hist);
+  };
+
+  const handleDeleteHistoryEntry = async (entryId: string) => {
+    if (!demanda) return;
+    if (!confirm('Excluir esta mudança de status? O status atual será revertido para a mudança mais recente restante.')) return;
+    const { error } = await supabase.from('esquadro_status_historico').delete().eq('id', entryId);
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+      return;
+    }
+    // Re-evaluate current status from remaining history
+    const { data: remaining } = await supabase
+      .from('esquadro_status_historico')
+      .select('status_novo_id')
+      .eq('demanda_id', demanda.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (remaining && remaining[0]) {
+      const newStatusId = remaining[0].status_novo_id;
+      await supabase.from('esquadro_demandas').update({ status_id: newStatusId }).eq('id', demanda.id);
+      demanda.status_id = newStatusId;
+      if (demanda.status) demanda.status = { ...demanda.status, id: newStatusId, nome: statusMap[newStatusId] || '' };
+    }
+    fetchStatusHistory();
+    onRefresh?.();
+  };
 
   const fetchComentarios = async () => {
     if (!demanda) return;
@@ -242,10 +294,19 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     if (error) {
       toast({ title: 'Erro ao salvar conclusão', description: error.message, variant: 'destructive' });
     } else {
+      const previousStatusId = demanda.status_id;
       demanda.data_conclusao = value;
-      if (update.status_id) {
+      if (update.status_id && update.status_id !== previousStatusId) {
+        await supabase.from('esquadro_status_historico').insert({
+          demanda_id: demanda.id,
+          status_anterior_id: previousStatusId || null,
+          status_novo_id: update.status_id,
+          observacao: 'Status alterado automaticamente ao definir data de conclusão.',
+          user_id: user?.id || null,
+        });
         demanda.status_id = update.status_id;
         if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
+        fetchStatusHistory();
       }
       setEditingConclusao(false);
       onRefresh?.();
@@ -507,7 +568,69 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
               </div>
             )}
           </div>
+
+          <Separator className="my-4" />
+
+          {/* Histórico de Status - collapsed by default */}
+          <div className="space-y-2 pb-2">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded-md transition-colors px-2 py-1.5 -mx-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  Histórico de Status ({statusHistory.length})
+                </h4>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-2 mt-2">
+                  {statusHistory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma mudança registrada.</p>
+                  ) : (
+                    statusHistory.map((h) => (
+                      <div key={h.id} className="bg-card border rounded-md p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                            {h.status_anterior_id && (
+                              <>
+                                <Badge variant="outline" className="font-normal">{statusMap[h.status_anterior_id] || '—'}</Badge>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                              </>
+                            )}
+                            <Badge variant="secondary" className="font-normal">{statusMap[h.status_novo_id] || '—'}</Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </span>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteHistoryEntry(h.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {(h.observacao || h.usuario) && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {h.usuario && <span className="font-medium">{h.usuario.nome || h.usuario.email}</span>}
+                            {h.observacao && (
+                              <p className="mt-1 whitespace-pre-wrap text-foreground">{h.observacao}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
+
 
         {/* New comment */}
         <div className="flex gap-2 mt-2">
