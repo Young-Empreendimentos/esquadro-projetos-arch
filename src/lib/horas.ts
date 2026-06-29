@@ -6,14 +6,33 @@ export const ALOCACAO_INICIO = new Date('2026-02-23');
 // Carga horária diária padrão (full-time) quando o perfil não define uma.
 export const CARGA_HORARIA_PADRAO = 8.5;
 
+// Jornada full-time por dia da semana: a segunda tem 0,25h a mais (8,75h).
+const JORNADA_PADRAO: Record<number, number> = {
+  0: 0,    // domingo
+  1: 8.75, // segunda
+  2: 8.5,  // terça
+  3: 8.5,  // quarta
+  4: 8.5,  // quinta
+  5: 8.5,  // sexta
+  6: 0,    // sábado
+};
+
 /**
  * Horas esperadas num dia, conforme a carga diária da pessoa.
  * Dias úteis = segunda a sexta; fim de semana = 0.
+ *
+ * - Full-time (carga nula ou = padrão 8,5h): mantém a jornada por dia da semana,
+ *   com a segunda valendo 8,75h.
+ * - Carga personalizada (ex.: meio período, 4h): jornada uniforme em todo dia útil.
  */
 export function horasEsperadasNoDia(date: Date, cargaDiaria?: number | null): number {
   const dow = getDay(date); // 0 = domingo ... 6 = sábado
-  if (dow === 0 || dow === 6) return 0;
-  return cargaDiaria ?? CARGA_HORARIA_PADRAO;
+  if (dow === 0 || dow === 6) return 0; // fim de semana
+  const carga = cargaDiaria == null ? null : Number(cargaDiaria);
+  if (carga == null || carga === CARGA_HORARIA_PADRAO) {
+    return JORNADA_PADRAO[dow];
+  }
+  return carga;
 }
 
 export interface GapHoras {
