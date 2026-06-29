@@ -21,21 +21,11 @@ import {
   eachDayOfInterval,
   isSaturday,
   isSunday,
-  getDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { horasEsperadasNoDia } from '@/lib/horas';
 
 const DAY_NAMES_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-
-const HORAS_PADRAO: Record<number, number> = {
-  1: 8.75,
-  2: 8.5,
-  3: 8.5,
-  4: 8.5,
-  5: 8.5,
-  6: 0,
-  0: 0,
-};
 
 type CellKey = string; // `${demanda_id}__${date}`
 type CellData = {
@@ -69,7 +59,7 @@ const createTempId = () => {
 };
 
 const RegistroHoras = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -331,7 +321,7 @@ const RegistroHoras = () => {
   };
 
   const weekTotal = days.reduce((sum, day) => sum + getDayTotal(format(day, 'yyyy-MM-dd')), 0);
-  const expectedTotal = days.reduce((sum, day) => sum + (HORAS_PADRAO[getDay(day)] || 0), 0);
+  const expectedTotal = days.reduce((sum, day) => sum + horasEsperadasNoDia(day, profile?.carga_horaria_diaria), 0);
 
   // Removed role restriction - admins and arquitetas can both use this page
 
@@ -605,7 +595,7 @@ const RegistroHoras = () => {
                 {days.map((day, i) => {
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const dayTotal = getDayTotal(dateStr);
-                  const expected = HORAS_PADRAO[getDay(day)] || 0;
+                  const expected = horasEsperadasNoDia(day, profile?.carga_horaria_diaria);
                   const isOver = dayTotal > expected && expected > 0;
                   const isUnder = dayTotal < expected && dayTotal > 0;
                   return (

@@ -2,13 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { format, eachDayOfInterval, getDay, startOfDay, subDays, isBefore } from 'date-fns';
-
-const HORAS_PADRAO: Record<number, number> = {
-  1: 8.75, 2: 8.5, 3: 8.5, 4: 8.5, 5: 8.5, 6: 0, 0: 0,
-};
-
-const ALOCACAO_INICIO = new Date('2026-02-23');
+import { format, startOfDay, subDays, isBefore } from 'date-fns';
+import { ALOCACAO_INICIO, calcularGapsHoras } from '@/lib/horas';
 
 const PendenciasHoras = () => {
   const [pendencias, setPendencias] = useState<any[]>([]);
@@ -27,7 +22,7 @@ const PendenciasHoras = () => {
       const [{ data: arquitetas }, { data: allHoras }] = await Promise.all([
         supabase
           .from('esquadro_profiles')
-          .select('id, nome, email, role')
+          .select('id, nome, email, role, created_at, carga_horaria_diaria')
           .eq('ativo', true)
           .eq('role', 'arquiteta'),
         supabase
@@ -43,21 +38,15 @@ const PendenciasHoras = () => {
         horasMap[r.user_id][r.data] = (horasMap[r.user_id][r.data] || 0) + (r.horas || 0);
       });
 
-      const diasCheck = eachDayOfInterval({ start: inicioAlocacao, end: ontem });
       const pendList: any[] = [];
 
       (arquitetas || []).forEach((arq: any) => {
-        const userHoras = horasMap[arq.id] || {};
-        const gaps: { data: string; esperado: number; alocado: number }[] = [];
-
-        diasCheck.forEach((dia) => {
-          const esperado = HORAS_PADRAO[getDay(dia)] || 0;
-          if (esperado === 0) return;
-          const dateStr = format(dia, 'yyyy-MM-dd');
-          const alocado = userHoras[dateStr] || 0;
-          if (alocado < esperado) {
-            gaps.push({ data: dateStr, esperado, alocado });
-          }
+        const gaps = calcularGapsHoras({
+          inicio: inicioAlocacao,
+          fim: ontem,
+          horasPorData: horasMap[arq.id] || {},
+          cargaDiaria: arq.carga_horaria_diaria,
+          entrada: arq.created_at,
         });
 
         if (gaps.length > 0) {

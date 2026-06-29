@@ -5,12 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
-import { format, eachDayOfInterval, getDay, startOfDay, subDays, isBefore } from 'date-fns';
-
-const HORAS_PADRAO: Record<number, number> = {
-  1: 8.75, 2: 8.5, 3: 8.5, 4: 8.5, 5: 8.5, 6: 0, 0: 0,
-};
-const ALOCACAO_INICIO = new Date('2026-02-23');
+import { format, startOfDay, subDays, isBefore } from 'date-fns';
+import { ALOCACAO_INICIO, calcularGapsHoras } from '@/lib/horas';
 
 const PendenciasModal = () => {
   const { profile, loading } = useAuth();
@@ -45,17 +41,12 @@ const PendenciasModal = () => {
           horasMap[r.data] = (horasMap[r.data] || 0) + (r.horas || 0);
         });
 
-        const diasCheck = eachDayOfInterval({ start: inicioAlocacao, end: ontem });
-        const pendGaps: typeof gaps = [];
-
-        diasCheck.forEach((dia) => {
-          const esperado = HORAS_PADRAO[getDay(dia)] || 0;
-          if (esperado === 0) return;
-          const dateStr = format(dia, 'yyyy-MM-dd');
-          const alocado = horasMap[dateStr] || 0;
-          if (alocado < esperado) {
-            pendGaps.push({ data: dateStr, esperado, alocado });
-          }
+        const pendGaps = calcularGapsHoras({
+          inicio: inicioAlocacao,
+          fim: ontem,
+          horasPorData: horasMap,
+          cargaDiaria: profile.carga_horaria_diaria,
+          entrada: profile.created_at,
         });
 
         if (pendGaps.length > 0) {

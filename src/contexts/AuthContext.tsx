@@ -9,6 +9,8 @@ interface UserProfile {
   role: 'admin' | 'arquiteta' | 'comum';
   ativo: boolean;
   custo_hora: number | null;
+  carga_horaria_diaria: number | null;
+  created_at: string;
 }
 
 interface AuthContextType {

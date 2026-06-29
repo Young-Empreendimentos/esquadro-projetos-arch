@@ -7,20 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isBefore, startOfDay, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isBefore, startOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-const HORAS_PADRAO: Record<number, number> = {
-  1: 8.75, // segunda
-  2: 8.5,  // terça
-  3: 8.5,  // quarta
-  4: 8.5,  // quinta
-  5: 8.5,  // sexta
-  6: 0,    // sábado
-  0: 0,    // domingo
-};
-
-const ALOCACAO_INICIO = new Date('2026-02-23');
+import { ALOCACAO_INICIO, calcularGapsHoras } from '@/lib/horas';
 
 const prioridadeLabel: Record<number, string> = { 1: 'Alta', 2: 'Média', 3: 'Baixa' };
 const prioridadeColor: Record<number, string> = {
@@ -151,7 +140,7 @@ const Dashboard = () => {
         // Fetch all arquitetas
         const { data: arquitetas } = await supabase
           .from('esquadro_profiles')
-          .select('id, nome, email, role')
+          .select('id, nome, email, role, created_at, carga_horaria_diaria')
           .eq('ativo', true)
           .eq('role', 'arquiteta');
 
@@ -168,21 +157,15 @@ const Dashboard = () => {
           horasMap[r.user_id][r.data] = (horasMap[r.user_id][r.data] || 0) + (r.horas || 0);
         });
 
-        const diasCheck = eachDayOfInterval({ start: inicioAlocacao, end: ontem });
         const pendList: any[] = [];
 
         (arquitetas || []).forEach((arq: any) => {
-          const userHoras = horasMap[arq.id] || {};
-          const gaps: { data: string; esperado: number; alocado: number }[] = [];
-
-          diasCheck.forEach((dia) => {
-            const esperado = HORAS_PADRAO[getDay(dia)] || 0;
-            if (esperado === 0) return; // skip weekends
-            const dateStr = format(dia, 'yyyy-MM-dd');
-            const alocado = userHoras[dateStr] || 0;
-            if (alocado < esperado) {
-              gaps.push({ data: dateStr, esperado, alocado });
-            }
+          const gaps = calcularGapsHoras({
+            inicio: inicioAlocacao,
+            fim: ontem,
+            horasPorData: horasMap[arq.id] || {},
+            cargaDiaria: arq.carga_horaria_diaria,
+            entrada: arq.created_at,
           });
 
           if (gaps.length > 0) {

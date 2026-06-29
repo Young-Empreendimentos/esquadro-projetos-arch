@@ -3546,6 +3546,7 @@ export type Database = {
         Row: {
           ativo: boolean
           avatar_url: string | null
+          carga_horaria_diaria: number | null
           created_at: string
           custo_hora: number | null
           email: string
@@ -3557,6 +3558,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           avatar_url?: string | null
+          carga_horaria_diaria?: number | null
           created_at?: string
           custo_hora?: number | null
           email?: string
@@ -3568,6 +3570,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           avatar_url?: string | null
+          carga_horaria_diaria?: number | null
           created_at?: string
           custo_hora?: number | null
           email?: string
