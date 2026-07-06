@@ -17,12 +17,13 @@ import Configuracoes from "@/pages/Configuracoes";
 import PendenciasHoras from "@/pages/PendenciasHoras";
 import Impugnacoes from "@/pages/Impugnacoes";
 import PendenciasModal from "@/components/PendenciasModal";
+import AcessoPendente from "@/components/AcessoPendente";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -33,6 +34,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  // Logado mas sem perfil ativo (2ª validação por sistema) → aguardando liberação.
+  if (!profile) return <AcessoPendente />;
   return <>{children}</>;
 };
 

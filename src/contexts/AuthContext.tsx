@@ -44,8 +44,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .select('*')
       .eq('email', email)
       .eq('ativo', true)
-      .single();
-    setProfile(data as UserProfile | null);
+      .maybeSingle();
+    setProfile((data as UserProfile) ?? null);
+    // 2ª validação: logado mas sem perfil ATIVO → registra/reabre o pedido de acesso.
+    if (!data) {
+      try {
+        await supabase.rpc('esquadro_registrar_solicitacao_acesso' as any);
+      } catch (e) {
+        console.error('Erro ao registrar solicitação de acesso:', e);
+      }
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -67,11 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user?.email) {
+        // fetchProfile libera o loading (após checar perfil / registrar pedido)
         setTimeout(() => fetchProfile(session.user.email!), 0);
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -79,8 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user?.email) {
         fetchProfile(session.user.email);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

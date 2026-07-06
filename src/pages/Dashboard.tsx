@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import SolicitacoesAcessoCard from '@/components/SolicitacoesAcessoCard';
 import { format, startOfMonth, endOfMonth, isBefore, startOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ALOCACAO_INICIO, calcularGapsHoras } from '@/lib/horas';
@@ -300,6 +301,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <SolicitacoesAcessoCard />
       {!isAdmin && (
         <p className="text-muted-foreground text-sm">{`Olá, ${profile?.nome || 'Bem-vindo(a)'}!`}</p>
       )}
