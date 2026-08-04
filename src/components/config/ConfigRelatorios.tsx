@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import React from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, projetosDb } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

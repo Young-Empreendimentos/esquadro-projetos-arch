@@ -28,3 +28,7 @@ export const projetosDb = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHA
     return data.session?.access_token ?? null;
   },
 });
+
+// Marcador de versão visível na tela (Login/Acesso pendente) para confirmar,
+// sem DevTools, se o navegador está carregando o bundle novo (vs. cache).
+export const APP_BUILD = "build v7 · projetos-token";
