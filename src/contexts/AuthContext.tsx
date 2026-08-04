@@ -39,25 +39,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
 
   const fetchProfile = async (email: string) => {
-    const { data } = await projetosDb
-      .from('esquadro_profiles')
-      .select('*')
-      .eq('email', email)
-      .eq('ativo', true)
-      .maybeSingle();
-    setProfile((data as UserProfile) ?? null);
-    // 2ª validação: logado mas sem perfil ATIVO → registra/reabre o pedido de acesso.
-    if (!data) {
-      try {
-        await supabase.rpc('esquadro_registrar_solicitacao_acesso' as any);
-      } catch (e) {
-        console.error('Erro ao registrar solicitação de acesso:', e);
+    try {
+      const { data, error } = await projetosDb
+        .from('esquadro_profiles')
+        .select('*')
+        .eq('email', email)
+        .eq('ativo', true)
+        .maybeSingle();
+      if (error) console.error('Erro ao consultar perfil (projetos):', error.message);
+      setProfile((data as UserProfile) ?? null);
+      // 2ª validação: logado mas sem perfil ATIVO → registra/reabre o pedido de acesso.
+      if (!data) {
+        try {
+          await supabase.rpc('esquadro_registrar_solicitacao_acesso' as any);
+        } catch (e) {
+          console.error('Erro ao registrar solicitação de acesso:', e);
+        }
       }
+    } catch (e) {
+      console.error('Falha ao carregar perfil:', e);
+      setProfile(null);
+    } finally {
+      setLoading(false); // nunca deixa o app preso na tela de loading
     }
-    setLoading(false);
   };
 
   useEffect(() => {
+    // Rede de segurança: nunca prender o app na tela de loading (ex.: chamada que trava).
+    const safety = setTimeout(() => setLoading(false), 8000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       // Restrição de domínio: só para quem entrou via Google.
       const provider = session?.user?.app_metadata?.provider as string | undefined;
@@ -94,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(safety); subscription.unsubscribe(); };
   }, []);
 
   const signIn = async (email: string, password: string) => {
