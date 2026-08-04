@@ -67,12 +67,12 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const fetchStatusHistory = async () => {
     if (!demanda) return;
     const [histRes, statusRes] = await Promise.all([
-      supabase
+      projetosDb
         .from('esquadro_status_historico')
         .select('*')
         .eq('demanda_id', demanda.id)
         .order('created_at', { ascending: false }),
-      supabase.from('esquadro_status').select('id, nome'),
+      projetosDb.from('esquadro_status').select('id, nome'),
     ]);
     const sMap: Record<string, string> = {};
     (statusRes.data || []).forEach((s: any) => { sMap[s.id] = s.nome; });
@@ -80,7 +80,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     // attach user names
     const userIds = [...new Set(hist.map((h: any) => h.user_id).filter(Boolean))];
     if (userIds.length > 0) {
-      const { data: profs } = await supabase.from('esquadro_profiles').select('id, nome, email').in('id', userIds);
+      const { data: profs } = await projetosDb.from('esquadro_profiles').select('id, nome, email').in('id', userIds);
       const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
       hist.forEach((h: any) => { h.usuario = pMap.get(h.user_id) || null; });
     }
@@ -91,13 +91,13 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleDeleteHistoryEntry = async (entryId: string) => {
     if (!demanda) return;
     if (!confirm('Excluir esta mudança de status? O status atual será revertido para a mudança mais recente restante.')) return;
-    const { error } = await supabase.from('esquadro_status_historico').delete().eq('id', entryId);
+    const { error } = await projetosDb.from('esquadro_status_historico').delete().eq('id', entryId);
     if (error) {
       toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
       return;
     }
     // Re-evaluate current status from remaining history
-    const { data: remaining } = await supabase
+    const { data: remaining } = await projetosDb
       .from('esquadro_status_historico')
       .select('status_novo_id')
       .eq('demanda_id', demanda.id)
@@ -105,7 +105,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
       .limit(1);
     if (remaining && remaining[0]) {
       const newStatusId = remaining[0].status_novo_id;
-      await supabase.from('esquadro_demandas').update({ status_id: newStatusId }).eq('id', demanda.id);
+      await projetosDb.from('esquadro_demandas').update({ status_id: newStatusId }).eq('id', demanda.id);
       demanda.status_id = newStatusId;
       if (demanda.status) demanda.status = { ...demanda.status, id: newStatusId, nome: statusMap[newStatusId] || '' };
     }
@@ -116,7 +116,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const fetchComentarios = async () => {
     if (!demanda) return;
     setLoadingComments(true);
-    const { data } = await supabase
+    const { data } = await projetosDb
       .from('esquadro_comentarios')
       .select('*')
       .eq('demanda_id', demanda.id)
@@ -126,7 +126,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     if (comments.length > 0) {
       const userIds = [...new Set(comments.map((c: any) => c.user_id).filter(Boolean))];
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await projetosDb
           .from('esquadro_profiles')
           .select('id, nome, email')
           .in('id', userIds);
@@ -142,7 +142,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
 
   const fetchImpugnacoes = async () => {
     if (!demanda) return;
-    const { data } = await supabase
+    const { data } = await projetosDb
       .from('esquadro_impugnacoes')
       .select('*')
       .eq('demanda_id', demanda.id)
@@ -152,7 +152,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
 
   const fetchHorasConsumidas = async () => {
     if (!demanda) return;
-    const { data } = await supabase
+    const { data } = await projetosDb
       .from('esquadro_registro_horas')
       .select('horas')
       .eq('demanda_id', demanda.id);
@@ -162,7 +162,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleAddImpugnacao = async () => {
     if (!demanda || !novaImpugnacao.trim()) return;
     setAddingImpugnacao(true);
-    const { error } = await supabase.from('esquadro_impugnacoes').insert({
+    const { error } = await projetosDb.from('esquadro_impugnacoes').insert({
       demanda_id: demanda.id,
       descricao: novaImpugnacao.trim(),
       data: novaImpugnacaoData || new Date().toISOString().split('T')[0],
@@ -180,7 +180,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   };
 
   const handleDeleteImpugnacao = async (id: string) => {
-    const { error } = await supabase.from('esquadro_impugnacoes').delete().eq('id', id);
+    const { error } = await projetosDb.from('esquadro_impugnacoes').delete().eq('id', id);
     if (error) {
       toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
     } else {
@@ -192,7 +192,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleSend = async () => {
     if (!novoTexto.trim() || !user || !demanda) return;
     setSending(true);
-    const { error } = await supabase.from('esquadro_comentarios').insert({
+    const { error } = await projetosDb.from('esquadro_comentarios').insert({
       demanda_id: demanda.id,
       user_id: user.id,
       conteudo: novoTexto.trim(),
@@ -209,7 +209,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handlePrioridadeChange = async (value: string) => {
     if (!demanda) return;
     setUpdatingPrioridade(true);
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update({ prioridade: Number(value) })
       .eq('id', demanda.id);
@@ -225,7 +225,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleSaveInstrucoes = async () => {
     if (!demanda) return;
     setSavingInstrucoes(true);
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update({ instrucoes: instrucoes.trim() })
       .eq('id', demanda.id);
@@ -242,7 +242,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleSaveHorasEstimadas = async () => {
     if (!demanda) return;
     const value = horasEstimadas === '' ? null : Number(horasEstimadas);
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update({ horas_estimadas: value })
       .eq('id', demanda.id);
@@ -258,7 +258,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleSavePrazo = async () => {
     if (!demanda) return;
     const value = prazoValue || null;
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update({ prazo: value })
       .eq('id', demanda.id);
@@ -277,7 +277,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     const update: any = { data_conclusao: value };
     // If data_conclusao is set, force status to "Concluído"
     if (value) {
-      const { data: concluido } = await supabase
+      const { data: concluido } = await projetosDb
         .from('esquadro_status')
         .select('id, nome')
         .ilike('nome', 'Concluído')
@@ -287,7 +287,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
         update.status_id = concluido.id;
       }
     }
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update(update)
       .eq('id', demanda.id);
@@ -297,7 +297,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
       const previousStatusId = demanda.status_id;
       demanda.data_conclusao = value;
       if (update.status_id && update.status_id !== previousStatusId) {
-        await supabase.from('esquadro_status_historico').insert({
+        await projetosDb.from('esquadro_status_historico').insert({
           demanda_id: demanda.id,
           status_anterior_id: previousStatusId || null,
           status_novo_id: update.status_id,

@@ -63,8 +63,8 @@ const RelatorioHoras = () => {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('esquadro_profiles').select('id, nome, email').eq('ativo', true).order('nome'),
-      supabase.from('esquadro_motivos_nao_trabalho').select('id, nome'),
+      projetosDb.from('esquadro_profiles').select('id, nome, email').eq('ativo', true).order('nome'),
+      projetosDb.from('esquadro_motivos_nao_trabalho').select('id, nome'),
     ]).then(([profRes, motRes]) => {
       setUsuarios(profRes.data || []);
       setMotivos(motRes.data || []);
@@ -76,7 +76,7 @@ const RelatorioHoras = () => {
     const dateFrom = format(periodStart, 'yyyy-MM-dd');
     const dateTo = format(periodEnd, 'yyyy-MM-dd');
 
-    let query = supabase
+    let query = projetosDb
       .from('esquadro_registro_horas')
       .select('user_id, data, horas, demanda_id, motivo_nao_trabalho_id, observacao')
       .gte('data', dateFrom)
@@ -88,7 +88,7 @@ const RelatorioHoras = () => {
 
     const [regRes, demRes] = await Promise.all([
       query,
-      supabase.from('esquadro_demandas').select(`
+      projetosDb.from('esquadro_demandas').select(`
         id,
         empreendimento:esquadro_empreendimentos(nome),
         tipo_projeto:esquadro_tipos_projeto(nome)

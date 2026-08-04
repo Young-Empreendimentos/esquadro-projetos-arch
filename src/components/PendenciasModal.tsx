@@ -24,7 +24,7 @@ const PendenciasModal = () => {
         const inicioAlocacao = startOfDay(ALOCACAO_INICIO);
         if (isBefore(ontem, inicioAlocacao)) return;
 
-        const { data: allHoras, error } = await supabase
+        const { data: allHoras, error } = await projetosDb
           .from('esquadro_registro_horas')
           .select('data, horas')
           .eq('user_id', profile.id)

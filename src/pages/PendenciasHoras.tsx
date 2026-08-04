@@ -20,12 +20,12 @@ const PendenciasHoras = () => {
       }
 
       const [{ data: arquitetas }, { data: allHoras }] = await Promise.all([
-        supabase
+        projetosDb
           .from('esquadro_profiles')
           .select('id, nome, email, role, created_at, carga_horaria_diaria')
           .eq('ativo', true)
           .eq('role', 'arquiteta'),
-        supabase
+        projetosDb
           .from('esquadro_registro_horas')
           .select('user_id, data, horas')
           .gte('data', format(inicioAlocacao, 'yyyy-MM-dd'))

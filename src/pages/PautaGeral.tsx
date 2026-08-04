@@ -36,7 +36,7 @@ const PautaGeral = () => {
 
   const fetchDemandas = useCallback(async () => {
     setLoading(true);
-    let query = supabase
+    let query = projetosDb
       .from('esquadro_demandas')
       .select(`
         *,

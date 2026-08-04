@@ -49,11 +49,11 @@ const Dashboard = () => {
     const fetchData = async () => {
       // Fetch pinned pautas + profiles for user info
       const [pautasRes, profilesRes] = await Promise.all([
-        (supabase.from('esquadro_comentarios_pauta' as any) as any)
+        (projetosDb.from('esquadro_comentarios_pauta' as any) as any)
           .select('*')
           .eq('fixado', true)
           .order('created_at', { ascending: false }),
-        supabase.from('esquadro_profiles').select('id, nome, email'),
+        projetosDb.from('esquadro_profiles').select('id, nome, email'),
       ]);
       const profilesMap: Record<string, any> = {};
       (profilesRes.data || []).forEach((p: any) => { profilesMap[p.id] = p; });
@@ -67,18 +67,18 @@ const Dashboard = () => {
       const mesFim = format(endOfMonth(now), 'yyyy-MM-dd');
 
       const [empRes, demRes, horasRes, statusRes, allHorasRes, arqRes] = await Promise.all([
-        supabase.from('esquadro_empreendimentos').select('id', { count: 'exact' }).eq('ativo', true),
-        supabase.from('esquadro_demandas').select(`
+        projetosDb.from('esquadro_empreendimentos').select('id', { count: 'exact' }).eq('ativo', true),
+        projetosDb.from('esquadro_demandas').select(`
           *,
           empreendimento:esquadro_empreendimentos(nome),
           status:esquadro_status(id, nome),
           tipo_projeto:esquadro_tipos_projeto(nome)
         `).order('prioridade').order('prazo'),
-        supabase.from('esquadro_registro_horas').select('horas, user_id, demanda_id, motivo_nao_trabalho_id')
+        projetosDb.from('esquadro_registro_horas').select('horas, user_id, demanda_id, motivo_nao_trabalho_id')
           .gte('data', mesInicio).lte('data', mesFim),
-        supabase.from('esquadro_status').select('id, nome').eq('ativo', true),
-        supabase.from('esquadro_registro_horas').select('demanda_id, data'),
-        supabase.from('esquadro_profiles').select('id, nome, email, role').eq('ativo', true).eq('role', 'arquiteta'),
+        projetosDb.from('esquadro_status').select('id, nome').eq('ativo', true),
+        projetosDb.from('esquadro_registro_horas').select('demanda_id, data'),
+        projetosDb.from('esquadro_profiles').select('id, nome, email, role').eq('ativo', true).eq('role', 'arquiteta'),
       ]);
 
       const allDemandas = demRes.data || [];
@@ -139,14 +139,14 @@ const Dashboard = () => {
       const inicioAlocacao = startOfDay(ALOCACAO_INICIO);
       if (!isBefore(ontem, inicioAlocacao)) {
         // Fetch all arquitetas
-        const { data: arquitetas } = await supabase
+        const { data: arquitetas } = await projetosDb
           .from('esquadro_profiles')
           .select('id, nome, email, role, created_at, carga_horaria_diaria')
           .eq('ativo', true)
           .eq('role', 'arquiteta');
 
         // Fetch all hour registrations from start date
-        const { data: allHoras } = await supabase
+        const { data: allHoras } = await projetosDb
           .from('esquadro_registro_horas')
           .select('user_id, data, horas')
           .gte('data', format(inicioAlocacao, 'yyyy-MM-dd'))
@@ -194,7 +194,7 @@ const Dashboard = () => {
       const histAll: any[] = [];
       const pageSize = 1000;
       for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
+        const { data, error } = await projetosDb
           .from('esquadro_status_historico')
           .select('demanda_id, status_anterior_id, status_novo_id, created_at')
           .order('created_at', { ascending: true })

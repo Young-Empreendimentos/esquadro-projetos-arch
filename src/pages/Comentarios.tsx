@@ -42,14 +42,14 @@ const Comentarios = () => {
   useEffect(() => {
     const fetchRefData = async () => {
       const [empRes, demRes, profRes] = await Promise.all([
-        supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
-        supabase.from('esquadro_demandas').select(`
+        projetosDb.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_demandas').select(`
           id,
           empreendimento_id,
           empreendimento:esquadro_empreendimentos(nome),
           tipo_projeto:esquadro_tipos_projeto(nome)
         `).order('created_at', { ascending: false }),
-        supabase.from('esquadro_profiles').select('id, nome, email'),
+        projetosDb.from('esquadro_profiles').select('id, nome, email'),
       ]);
       setEmpreendimentos(empRes.data || []);
       setDemandas(demRes.data || []);
@@ -62,7 +62,7 @@ const Comentarios = () => {
 
   const fetchComentarios = useCallback(async () => {
     setLoading(true);
-    let query = supabase
+    let query = projetosDb
       .from('esquadro_comentarios')
       .select(`
         *,
@@ -92,7 +92,7 @@ const Comentarios = () => {
   }, [filterEmp, filterDemanda]);
 
   const fetchComentariosPauta = useCallback(async () => {
-    const { data, error } = await (supabase
+    const { data, error } = await (projetosDb
       .from('esquadro_comentarios_pauta' as any) as any)
       .select('*')
       .order('created_at', { ascending: false });
@@ -117,7 +117,7 @@ const Comentarios = () => {
 
     if (modoPauta) {
       setSending(true);
-      const { error } = await (supabase.from('esquadro_comentarios_pauta' as any) as any).insert({
+      const { error } = await (projetosDb.from('esquadro_comentarios_pauta' as any) as any).insert({
         user_id: user?.id,
         conteudo: novoTexto.trim(),
         fixado: false,
@@ -136,7 +136,7 @@ const Comentarios = () => {
         return;
       }
       setSending(true);
-      const { error } = await supabase.from('esquadro_comentarios').insert({
+      const { error } = await projetosDb.from('esquadro_comentarios').insert({
         demanda_id: novoDemandaId,
         user_id: user?.id,
         conteudo: novoTexto.trim(),
@@ -153,7 +153,7 @@ const Comentarios = () => {
   };
 
   const toggleFixar = async (id: string, currentFixado: boolean) => {
-    const { error } = await (supabase
+    const { error } = await (projetosDb
       .from('esquadro_comentarios_pauta' as any) as any)
       .update({ fixado: !currentFixado })
       .eq('id', id);
@@ -166,7 +166,7 @@ const Comentarios = () => {
   };
 
   const handleDeletePauta = async (id: string) => {
-    const { error } = await (supabase
+    const { error } = await (projetosDb
       .from('esquadro_comentarios_pauta' as any) as any)
       .delete()
       .eq('id', id);
@@ -180,7 +180,7 @@ const Comentarios = () => {
 
   const handleEditPauta = async (id: string) => {
     if (!editingPautaTexto.trim()) return;
-    const { error } = await (supabase
+    const { error } = await (projetosDb
       .from('esquadro_comentarios_pauta' as any) as any)
       .update({ conteudo: editingPautaTexto.trim() })
       .eq('id', id);

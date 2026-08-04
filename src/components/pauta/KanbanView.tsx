@@ -47,7 +47,7 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
+      const { data } = await projetosDb
         .from('esquadro_status')
         .select('*')
         .eq('ativo', true)
@@ -94,7 +94,7 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
 
     const { demandaId, statusId, previousStatusId, statusName } = pendingChange;
 
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_demandas')
       .update({ status_id: statusId })
       .eq('id', demandaId);
@@ -107,7 +107,7 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
 
     const obs = observacao.trim();
 
-    await supabase.from('esquadro_status_historico').insert({
+    await projetosDb.from('esquadro_status_historico').insert({
       demanda_id: demandaId,
       status_anterior_id: previousStatusId,
       status_novo_id: statusId,
@@ -118,7 +118,7 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
     // Also publish observation as a comment so it appears in Comentários
     if (obs) {
       const previousStatusName = statusList.find((s) => s.id === previousStatusId)?.nome || '—';
-      await supabase.from('esquadro_comentarios').insert({
+      await projetosDb.from('esquadro_comentarios').insert({
         demanda_id: demandaId,
         user_id: user?.id || null,
         conteudo: `[Mudança de status: ${previousStatusName} → ${statusName}] ${obs}`,

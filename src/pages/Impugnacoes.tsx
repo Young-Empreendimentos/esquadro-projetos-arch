@@ -16,14 +16,14 @@ const Impugnacoes = () => {
   const [filterDateTo, setFilterDateTo] = useState('');
 
   useEffect(() => {
-    supabase.from('esquadro_empreendimentos').select('id, nome').eq('ativo', true).order('nome').then(({ data }) => {
+    projetosDb.from('esquadro_empreendimentos').select('id, nome').eq('ativo', true).order('nome').then(({ data }) => {
       setEmpreendimentos(data || []);
     });
   }, []);
 
   const fetchImpugnacoes = useCallback(async () => {
     setLoading(true);
-    let query = supabase
+    let query = projetosDb
       .from('esquadro_impugnacoes')
       .select(`
         *,

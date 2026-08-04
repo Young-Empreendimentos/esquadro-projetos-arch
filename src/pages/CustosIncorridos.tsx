@@ -46,7 +46,7 @@ const CustosIncorridos = () => {
         let from = 0;
         const all: any[] = [];
         while (true) {
-          const { data, error } = await supabase
+          const { data, error } = await projetosDb
             .from('esquadro_registro_horas')
             .select('demanda_id, user_id, horas, data, motivo_nao_trabalho_id')
             .range(from, from + pageSize - 1);
@@ -59,17 +59,17 @@ const CustosIncorridos = () => {
       };
 
       const [demRes, usrRes, horasAll, empRes, statusRes, tipoRes] = await Promise.all([
-        supabase.from('esquadro_demandas').select(`
+        projetosDb.from('esquadro_demandas').select(`
           id, horas_estimadas, arquiteta_id,
           empreendimento:esquadro_empreendimentos(id, nome),
           tipo_projeto:esquadro_tipos_projeto(id, nome),
           status:esquadro_status(id, nome)
         `),
-        supabase.from('esquadro_profiles').select('id, nome, email, custo_hora'),
+        projetosDb.from('esquadro_profiles').select('id, nome, email, custo_hora'),
         fetchAllHoras(),
-        supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
-        supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
-        supabase.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
+        projetosDb.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
       ]);
 
       setDemandas(demRes.data || []);

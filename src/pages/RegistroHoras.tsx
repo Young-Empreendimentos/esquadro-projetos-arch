@@ -83,8 +83,8 @@ const RegistroHoras = () => {
   useEffect(() => {
     const fetchFilters = async () => {
       const [s, e] = await Promise.all([
-        supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
-        supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
+        projetosDb.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
       ]);
       setStatusList(s.data || []);
       setEmpreendimentos(e.data || []);
@@ -101,7 +101,7 @@ const RegistroHoras = () => {
       const dateFrom = format(weekStart, 'yyyy-MM-dd');
       const dateTo = format(endOfWeek(weekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
-      let demandasQuery = supabase
+      let demandasQuery = projetosDb
         .from('esquadro_demandas')
         .select(`id, empreendimento_id, empreendimento:esquadro_empreendimentos(nome), tipo_projeto:esquadro_tipos_projeto(nome), status:esquadro_status(nome), status_id`)
         .order('prioridade');
@@ -115,13 +115,13 @@ const RegistroHoras = () => {
 
       const [demandasRes, horasRes, motivosRes] = await Promise.all([
         demandasQuery,
-        supabase
+        projetosDb
           .from('esquadro_registro_horas')
           .select('*')
           .eq('user_id', user.id)
           .gte('data', dateFrom)
           .lte('data', dateTo),
-        supabase
+        projetosDb
           .from('esquadro_motivos_nao_trabalho')
           .select('*')
           .eq('ativo', true)
@@ -234,7 +234,7 @@ const RegistroHoras = () => {
 
     // Delete demanda hours only for visible demandas
     if (visibleDemandaIds.length > 0) {
-      await supabase
+      await projetosDb
         .from('esquadro_registro_horas')
         .delete()
         .eq('user_id', user.id)
@@ -244,7 +244,7 @@ const RegistroHoras = () => {
     }
 
     // Delete motivo hours (those without demanda_id)
-    await supabase
+    await projetosDb
       .from('esquadro_registro_horas')
       .delete()
       .eq('user_id', user.id)
@@ -286,7 +286,7 @@ const RegistroHoras = () => {
     });
 
     if (inserts.length > 0) {
-      const { error } = await supabase.from('esquadro_registro_horas').insert(inserts);
+      const { error } = await projetosDb.from('esquadro_registro_horas').insert(inserts);
       if (error) {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
         setSaving(false);

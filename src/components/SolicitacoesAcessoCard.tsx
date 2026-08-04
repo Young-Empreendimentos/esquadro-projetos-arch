@@ -26,7 +26,7 @@ const SolicitacoesAcessoCard = () => {
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await (supabase.from('esquadro_solicitacao_acesso' as any) as any)
+    const { data } = await (projetosDb.from('esquadro_solicitacao_acesso' as any) as any)
       .select('id, user_id, email, nome, requested_at')
       .eq('status', 'pending')
       .order('requested_at', { ascending: true });

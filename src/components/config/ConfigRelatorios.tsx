@@ -103,12 +103,12 @@ const ConfigRelatorios = () => {
     setLoading(true);
     try {
       const [usuariosRes, reportsRes] = await Promise.all([
-        supabase
+        projetosDb
           .from('esquadro_profiles')
           .select('id, email, nome, role, ativo')
           .eq('ativo', true)
           .order('nome'),
-        supabase
+        projetosDb
           .from('esquadro_relatorios_config')
           .select('*')
           .order('created_at'),
@@ -139,7 +139,7 @@ const ConfigRelatorios = () => {
           frequencia: r.frequencia,
           horario: r.horario,
         }));
-        const { data: inserted, error: insertError } = await supabase
+        const { data: inserted, error: insertError } = await projetosDb
           .from('esquadro_relatorios_config')
           .insert(inserts)
           .select('*');
@@ -170,7 +170,7 @@ const ConfigRelatorios = () => {
     );
 
     if (!reportId.startsWith('default-')) {
-      const { error } = await supabase
+      const { error } = await projetosDb
         .from('esquadro_relatorios_config')
         .update(updates)
         .eq('id', reportId);
@@ -199,7 +199,7 @@ const ConfigRelatorios = () => {
 
     const emAndamentoId = '819a3d87-3884-4223-ac1b-7262434f0828';
     const [demandasRes, horasSemanRes, allUsuariosRes, demandasAllRes] = await Promise.all([
-      supabase
+      projetosDb
         .from('esquadro_demandas')
         .select(`
           id, prioridade, prazo, created_at,
@@ -209,22 +209,22 @@ const ConfigRelatorios = () => {
         `)
         .eq('status_id', emAndamentoId)
         .order('prioridade'),
-      supabase
+      projetosDb
         .from('esquadro_registro_horas')
         .select('user_id, demanda_id, data, horas, motivo_nao_trabalho_id')
         .gte('data', dateFrom)
         .lte('data', dateTo),
-      supabase
+      projetosDb
         .from('esquadro_profiles')
         .select('id, nome, email')
         .eq('ativo', true),
-      supabase
+      projetosDb
         .from('esquadro_demandas')
         .select(`id, empreendimento:esquadro_empreendimentos(nome), tipo_projeto:esquadro_tipos_projeto(nome)`),
     ]);
 
     // Total hours per demanda (all time)
-    const horasTotalRes = await supabase
+    const horasTotalRes = await projetosDb
       .from('esquadro_registro_horas')
       .select('demanda_id, horas')
       .not('demanda_id', 'is', null);

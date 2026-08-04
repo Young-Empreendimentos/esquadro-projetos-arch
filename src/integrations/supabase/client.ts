@@ -15,3 +15,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Client apontando para o schema "projetos" (onde as tabelas esquadro_* vivem agora).
+// Cast necessário porque os tipos gerados só conhecem o schema public; em runtime vai p/ projetos.
+export const projetosDb = supabase.schema("projetos" as unknown as "public");

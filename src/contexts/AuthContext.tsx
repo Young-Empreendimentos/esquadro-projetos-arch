@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
 
   const fetchProfile = async (email: string) => {
-    const { data } = await supabase
+    const { data } = await projetosDb
       .from('esquadro_profiles')
       .select('*')
       .eq('email', email)

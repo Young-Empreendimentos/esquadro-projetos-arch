@@ -41,7 +41,7 @@ const ConfigUsuarios = () => {
   });
 
   const fetchUsuarios = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await projetosDb
       .from('esquadro_profiles')
       .select('*')
       .order('nome');
@@ -91,7 +91,7 @@ const ConfigUsuarios = () => {
         custo_hora: form.custo_hora ? Number(form.custo_hora) : null,
       };
 
-      const { error } = await supabase
+      const { error } = await projetosDb
         .from('esquadro_profiles')
         .update(updateData)
         .eq('id', editingId);
@@ -113,7 +113,7 @@ const ConfigUsuarios = () => {
       // Insert into esquadro_usuarios table
       // The auth user should be created separately or via admin API
       // For now, we insert the profile record
-      const { error } = await (supabase
+      const { error } = await (projetosDb
         .from('esquadro_profiles') as any)
         .insert({
           email: form.email,
@@ -137,7 +137,7 @@ const ConfigUsuarios = () => {
   };
 
   const toggleAtivo = async (id: string, current: boolean) => {
-    const { error } = await supabase
+    const { error } = await projetosDb
       .from('esquadro_profiles')
       .update({ ativo: !current })
       .eq('id', id);
@@ -149,7 +149,7 @@ const ConfigUsuarios = () => {
   };
 
   const changeRole = async (id: string, newRole: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await projetosDb
       .from('esquadro_profiles')
       .update({ role: newRole })
       .eq('id', id)

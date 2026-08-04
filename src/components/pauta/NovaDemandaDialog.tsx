@@ -42,10 +42,10 @@ const NovaDemandaDialog = ({ open, onOpenChange, onCreated }: NovaDemandaDialogP
     if (!open) return;
     const fetchData = async () => {
       const [s, e, t, u] = await Promise.all([
-        supabase.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
-        supabase.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
-        supabase.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
-        supabase.from('esquadro_profiles').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_status').select('*').eq('ativo', true).order('ordem'),
+        projetosDb.from('esquadro_empreendimentos').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_tipos_projeto').select('*').eq('ativo', true).order('nome'),
+        projetosDb.from('esquadro_profiles').select('*').eq('ativo', true).order('nome'),
       ]);
       setStatusList(s.data || []);
       setEmpreendimentos(e.data || []);
@@ -62,7 +62,7 @@ const NovaDemandaDialog = ({ open, onOpenChange, onCreated }: NovaDemandaDialogP
     }
 
     setSaving(true);
-    const { error } = await supabase.from('esquadro_demandas').insert({
+    const { error } = await projetosDb.from('esquadro_demandas').insert({
       empreendimento_id: form.empreendimento_id,
       tipo_projeto_id: form.tipo_projeto_id,
       status_id: form.status_id,
