@@ -46,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('email', email)
         .eq('ativo', true)
         .maybeSingle();
+      console.info('[esquadro] fetchProfile', { email, encontrou: !!data, erro: error?.message ?? null });
       if (error) console.error('Erro ao consultar perfil (projetos):', error.message);
       setProfile((data as UserProfile) ?? null);
       // 2ª validação: logado mas sem perfil ATIVO → registra/reabre o pedido de acesso.

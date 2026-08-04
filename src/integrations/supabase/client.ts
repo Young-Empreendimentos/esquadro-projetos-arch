@@ -17,15 +17,14 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 });
 
 // Client para o schema "projetos" (onde as tabelas esquadro_* vivem agora).
-// IMPORTANTE: criado SOB DEMANDA a cada acesso. Um client de schema cacheado
-// "congela" o header Authorization do momento em que é criado (no load da página =
-// chave anônima), fazendo o usuário logado aparecer como "pendente". Este Proxy
-// devolve um client novo a cada uso, pegando sempre o token de login atual.
-// Cast necessário porque os tipos gerados só conhecem o schema public; em runtime vai p/ projetos.
-export const projetosDb = new Proxy({} as ReturnType<typeof supabase.schema>, {
-  get(_target, prop) {
-    const client = supabase.schema("projetos" as unknown as "public");
-    const value = (client as any)[prop];
-    return typeof value === "function" ? value.bind(client) : value;
+// Client de dados separado que puxa SEMPRE o token de login atual do client
+// principal (via accessToken, avaliado a cada request) — evita o problema de o
+// token "congelar" (que fazia o usuário logado aparecer como "pendente").
+// Cast do schema porque os tipos gerados só conhecem o public; em runtime vai p/ projetos.
+export const projetosDb = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  db: { schema: "projetos" as unknown as "public" },
+  accessToken: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   },
 });
