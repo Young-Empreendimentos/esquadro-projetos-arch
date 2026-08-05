@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, projetosDb } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +36,7 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const fetchItems = async () => {
-    const { data, error } = await (supabase
+    const { data, error } = await (projetosDb
       .from(tableName as any) as any)
       .select('*')
       .order(orderBy);
@@ -78,7 +78,7 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
 
   const handleSave = async () => {
     if (editingId) {
-      const { error } = await (supabase
+      const { error } = await (projetosDb
         .from(tableName as any) as any)
         .update(formData)
         .eq('id', editingId);
@@ -88,7 +88,7 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
       }
       toast({ title: 'Atualizado com sucesso' });
     } else {
-      const { error } = await (supabase
+      const { error } = await (projetosDb
         .from(tableName as any) as any)
         .insert(formData);
       if (error) {
@@ -102,7 +102,7 @@ const ConfigCrudTable = ({ tableName, title, columns, orderBy = 'created_at' }: 
   };
 
   const toggleAtivo = async (id: string, currentValue: boolean) => {
-    const { error } = await (supabase
+    const { error } = await (projetosDb
       .from(tableName as any) as any)
       .update({ ativo: !currentValue })
       .eq('id', id);
