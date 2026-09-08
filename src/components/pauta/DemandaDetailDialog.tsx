@@ -51,10 +51,8 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [prazoValue, setPrazoValue] = useState('');
   const [editingConclusao, setEditingConclusao] = useState(false);
   const [conclusaoValue, setConclusaoValue] = useState('');
-  const [editingPrazo2, setEditingPrazo2] = useState(false);
-  const [prazo2Value, setPrazo2Value] = useState('');
-  const [editingConclusao2, setEditingConclusao2] = useState(false);
-  const [conclusao2Value, setConclusao2Value] = useState('');
+  const [prazosHist, setPrazosHist] = useState<any[]>([]);
+  const [conclusoesHist, setConclusoesHist] = useState<any[]>([]);
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
 
@@ -66,7 +64,20 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     fetchImpugnacoes();
     fetchHorasConsumidas();
     fetchStatusHistory();
+    fetchHistoricos();
   }, [demanda, open]);
+
+  const fetchHistoricos = async () => {
+    if (!demanda) return;
+    const [pzRes, ccRes] = await Promise.all([
+      (projetosDb.from('esquadro_demanda_prazos' as any) as any)
+        .select('id, prazo, created_at, user_id').eq('demanda_id', demanda.id).order('created_at', { ascending: false }),
+      (projetosDb.from('esquadro_demanda_conclusoes' as any) as any)
+        .select('id, data_conclusao, created_at, user_id').eq('demanda_id', demanda.id).order('created_at', { ascending: false }),
+    ]);
+    setPrazosHist(pzRes.data || []);
+    setConclusoesHist(ccRes.data || []);
+  };
 
   const fetchStatusHistory = async () => {
     if (!demanda) return;
@@ -260,19 +271,46 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   };
 
   const handleSavePrazo = async () => {
-    if (!demanda) return;
-    const value = prazoValue || null;
-    const { error } = await projetosDb
-      .from('esquadro_demandas')
-      .update({ prazo: value })
-      .eq('id', demanda.id);
+    if (!demanda || !prazoValue) { setEditingPrazo(false); return; }
+    const value = prazoValue;
+    const update: any = { prazo: value };
+    // Reabrir: um novo prazo numa demanda concluída volta o status para "Em andamento".
+    let novoStatusId: string | null = null;
+    if ((statusMap[demanda.status_id] || '').toLowerCase().includes('conclu')) {
+      const { data: emAnd } = await projetosDb
+        .from('esquadro_status')
+        .select('id, nome')
+        .ilike('nome', '%andamento%')
+        .eq('ativo', true)
+        .limit(1)
+        .maybeSingle();
+      if (emAnd?.id) { update.status_id = emAnd.id; novoStatusId = emAnd.id; }
+    }
+    const { error } = await projetosDb.from('esquadro_demandas').update(update).eq('id', demanda.id);
     if (error) {
       toast({ title: 'Erro ao salvar prazo', description: error.message, variant: 'destructive' });
-    } else {
-      demanda.prazo = value;
-      setEditingPrazo(false);
-      onRefresh?.();
+      return;
     }
+    // Registra no histórico de prazos (N rodadas)
+    await (projetosDb.from('esquadro_demanda_prazos' as any) as any)
+      .insert({ demanda_id: demanda.id, prazo: value, user_id: user?.id || null });
+    demanda.prazo = value;
+    if (novoStatusId) {
+      const previousStatusId = demanda.status_id;
+      await projetosDb.from('esquadro_status_historico').insert({
+        demanda_id: demanda.id,
+        status_anterior_id: previousStatusId || null,
+        status_novo_id: novoStatusId,
+        observacao: 'Reaberta ao definir um novo prazo.',
+        user_id: user?.id || null,
+      });
+      demanda.status_id = novoStatusId;
+      if (demanda.status) demanda.status = { ...demanda.status, id: novoStatusId, nome: statusMap[novoStatusId] || 'Em Andamento' };
+      fetchStatusHistory();
+    }
+    setEditingPrazo(false);
+    fetchHistoricos();
+    onRefresh?.();
   };
 
   const handleSaveConclusao = async () => {
@@ -300,6 +338,11 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     } else {
       const previousStatusId = demanda.status_id;
       demanda.data_conclusao = value;
+      if (value) {
+        await (projetosDb.from('esquadro_demanda_conclusoes' as any) as any)
+          .insert({ demanda_id: demanda.id, data_conclusao: value, user_id: user?.id || null });
+        fetchHistoricos();
+      }
       if (update.status_id && update.status_id !== previousStatusId) {
         await projetosDb.from('esquadro_status_historico').insert({
           demanda_id: demanda.id,
@@ -315,62 +358,6 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
       setEditingConclusao(false);
       onRefresh?.();
     }
-  };
-
-  const handleSavePrazo2 = async () => {
-    if (!demanda) return;
-    const value = prazo2Value || null;
-    const { error } = await projetosDb
-      .from('esquadro_demandas')
-      .update({ prazo_2: value })
-      .eq('id', demanda.id);
-    if (error) {
-      toast({ title: 'Erro ao salvar 2º prazo', description: error.message, variant: 'destructive' });
-    } else {
-      demanda.prazo_2 = value;
-      setEditingPrazo2(false);
-      onRefresh?.();
-    }
-  };
-
-  const handleSaveConclusao2 = async () => {
-    if (!demanda) return;
-    const value = conclusao2Value || null;
-    const update: any = { data_conclusao_2: value };
-    // Definir a 2ª conclusão também marca como "Concluído" (igual à 1ª).
-    if (value) {
-      const { data: concluido } = await projetosDb
-        .from('esquadro_status')
-        .select('id, nome')
-        .ilike('nome', 'Concluído')
-        .limit(1)
-        .maybeSingle();
-      if (concluido?.id) update.status_id = concluido.id;
-    }
-    const { error } = await projetosDb
-      .from('esquadro_demandas')
-      .update(update)
-      .eq('id', demanda.id);
-    if (error) {
-      toast({ title: 'Erro ao salvar 2ª conclusão', description: error.message, variant: 'destructive' });
-      return;
-    }
-    const previousStatusId = demanda.status_id;
-    demanda.data_conclusao_2 = value;
-    if (update.status_id && update.status_id !== previousStatusId) {
-      await projetosDb.from('esquadro_status_historico').insert({
-        demanda_id: demanda.id,
-        status_anterior_id: previousStatusId || null,
-        status_novo_id: update.status_id,
-        observacao: 'Status alterado automaticamente ao definir a 2ª data de conclusão.',
-        user_id: user?.id || null,
-      });
-      demanda.status_id = update.status_id;
-      if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
-      fetchStatusHistory();
-    }
-    setEditingConclusao2(false);
-    onRefresh?.();
   };
 
   if (!demanda) return null;
@@ -465,56 +452,6 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
                 </span>
               );
             })()}
-            {/* 2º Prazo (aparece quando ja existe o 1o prazo) */}
-            {demanda.prazo && (editingPrazo2 ? (
-              <span className="inline-flex items-center gap-1">
-                · 2º Prazo:
-                <Input
-                  type="date"
-                  value={prazo2Value}
-                  onChange={(e) => setPrazo2Value(e.target.value)}
-                  className="w-36 h-6 text-xs"
-                />
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSavePrazo2}>
-                  <Check className="w-3 h-3" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingPrazo2(false)}>
-                  <X className="w-3 h-3" />
-                </Button>
-              </span>
-            ) : ((isAdmin || demanda.prazo_2) && (
-              <span
-                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
-                onClick={isAdmin ? () => { setPrazo2Value(demanda.prazo_2 || ''); setEditingPrazo2(true); } : undefined}
-              >
-                · 2º Prazo: {demanda.prazo_2 ? format(new Date(demanda.prazo_2 + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
-              </span>
-            )))}
-            {/* 2ª Conclusao (aparece quando ja existe o 2o prazo) */}
-            {demanda.prazo_2 && (editingConclusao2 ? (
-              <span className="inline-flex items-center gap-1">
-                · 2ª Conclusão:
-                <Input
-                  type="date"
-                  value={conclusao2Value}
-                  onChange={(e) => setConclusao2Value(e.target.value)}
-                  className="w-36 h-6 text-xs"
-                />
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSaveConclusao2}>
-                  <Check className="w-3 h-3" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingConclusao2(false)}>
-                  <X className="w-3 h-3" />
-                </Button>
-              </span>
-            ) : (
-              <span
-                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
-                onClick={isAdmin ? () => { setConclusao2Value(demanda.data_conclusao_2 || ''); setEditingConclusao2(true); } : undefined}
-              >
-                · 2ª Conclusão: {demanda.data_conclusao_2 ? format(new Date(demanda.data_conclusao_2 + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
-              </span>
-            ))}
             {editingHoras ? (
               <span className="inline-flex items-center gap-1 ml-1">
                 · <Input
@@ -697,6 +634,68 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
 
           <Separator className="my-4" />
 
+          {/* Histórico de Prazos */}
+          <div className="space-y-2 pb-2">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded-md transition-colors px-2 py-1.5 -mx-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  Histórico de Prazos ({prazosHist.length})
+                </h4>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1.5 mt-2">
+                  {prazosHist.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum prazo registrado.</p>
+                  ) : (
+                    prazosHist.map((p, i) => (
+                      <div key={p.id} className="flex items-center justify-between text-xs bg-card border rounded-md px-3 py-1.5">
+                        <span className="font-medium">
+                          {format(new Date(p.prazo + 'T00:00:00'), 'dd/MM/yyyy')}
+                          {i === 0 && <span className="ml-1.5 text-[10px] text-primary">(atual)</span>}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          definido em {format(new Date(p.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          {/* Histórico de Conclusões */}
+          <div className="space-y-2 pb-2">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded-md transition-colors px-2 py-1.5 -mx-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  Histórico de Conclusões ({conclusoesHist.length})
+                </h4>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1.5 mt-2">
+                  {conclusoesHist.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma conclusão registrada.</p>
+                  ) : (
+                    conclusoesHist.map((c, i) => (
+                      <div key={c.id} className="flex items-center justify-between text-xs bg-card border rounded-md px-3 py-1.5">
+                        <span className="font-medium">
+                          {format(new Date(c.data_conclusao + 'T00:00:00'), 'dd/MM/yyyy')}
+                          {i === 0 && <span className="ml-1.5 text-[10px] text-primary">(atual)</span>}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          registrada em {format(new Date(c.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
           {/* Histórico de Status - collapsed by default */}
           <div className="space-y-2 pb-2">
             <Collapsible>

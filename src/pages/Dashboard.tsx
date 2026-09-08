@@ -123,17 +123,11 @@ const Dashboard = () => {
         totalDemandas: allDemandas.length,
       });
 
-      // Demandas com prazo próximo: usa o prazo mais recente (2º quando existe) e
-      // só mostra as que AINDA não têm conclusão na rodada atual (exclui canceladas).
-      const prazoEf = (d: any) => d.prazo_2 || d.prazo;
-      const pendente = (d: any) => {
-        if (canceladoIds.includes(d.status_id)) return false;
-        if (d.prazo_2) return !d.data_conclusao_2;                       // 2ª rodada: pendente até a 2ª conclusão
-        return !concluidoIds.includes(d.status_id) && !d.data_conclusao; // sem 2º prazo: só se não concluída
-      };
+      // Demandas com prazo próximo: pendentes (não concluídas/canceladas) pelo prazo atual.
+      // Ao reabrir (novo prazo numa concluída) o status volta p/ "Em andamento" -> reaparece aqui.
       const urgentesList = allDemandas
-        .filter((d: any) => prazoEf(d) && pendente(d))
-        .sort((a: any, b: any) => new Date(prazoEf(a)).getTime() - new Date(prazoEf(b)).getTime())
+        .filter((d: any) => d.prazo && !finishedIds.includes(d.status_id))
+        .sort((a: any, b: any) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime())
         .slice(0, 5);
       setUrgentes(urgentesList);
 
@@ -278,14 +272,12 @@ const Dashboard = () => {
       }
     });
 
-    // Conclusão efetiva: 2ª conclusão > 1ª conclusão manual > última saída de "em andamento"
+    // Conclusão efetiva: conclusão manual (a mais recente) > última saída de "em andamento"
     const getEffectiveDate = (d: any): string => {
-      if (d.data_conclusao_2) return String(d.data_conclusao_2).slice(0, 10);
       if (d.data_conclusao) return String(d.data_conclusao).slice(0, 10);
       return lastExitMap[d.id] || '';
     };
-    // Prazo efetivo: usa o 2º prazo quando existe (assim a 2ª rodada não fica "atrasada")
-    const getPrazo = (d: any): string | null => d.prazo_2 || d.prazo || null;
+    const getPrazo = (d: any): string | null => d.prazo || null;
 
     // Filter demandas: have prazo, currently in a target status, completion in semester
     const elegiveis = allDemandasRaw.filter((d: any) => {
@@ -307,7 +299,6 @@ const Dashboard = () => {
         empreendimento: d.empreendimento?.nome || '—',
         tipo: d.tipo_projeto?.nome || '—',
         prazo: pz,
-        temPrazo2: !!d.prazo_2,
         dataConclusao: completionDate,
         noPrazo: completionDate <= pz,
       };
@@ -525,8 +516,7 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {urgentes.map((d: any) => {
-                const prazoEf = d.prazo_2 || d.prazo;
-                const isLate = prazoEf && new Date(prazoEf) < new Date();
+                const isLate = d.prazo && new Date(d.prazo) < new Date();
                 return (
                   <div key={d.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                     <div className="min-w-0 flex-1">
@@ -541,7 +531,7 @@ const Dashboard = () => {
                       </Badge>
                       <div>
                         <p className="text-sm font-medium">
-                          {format(new Date(prazoEf), 'dd/MM/yyyy')}{d.prazo_2 ? ' (2º)' : ''}
+                          {format(new Date(d.prazo), 'dd/MM/yyyy')}
                         </p>
                         {isLate && (
                           <p className="text-xs text-destructive font-medium">Atrasada</p>
