@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, projetosDb } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target, Megaphone, Pin } from 'lucide-react';
+import { Building2, ClipboardList, AlertTriangle, Clock, CheckCircle2, Users, Target, Megaphone, Pin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -43,6 +44,7 @@ const Dashboard = () => {
   const [allStatusHistRaw, setAllStatusHistRaw] = useState<any[]>([]);
   const [allArquitetas, setAllArquitetas] = useState<any[]>([]);
   const [indicadorArqFilter, setIndicadorArqFilter] = useState('all');
+  const [semOffset, setSemOffset] = useState(0);
   const [indicadorModalOpen, setIndicadorModalOpen] = useState(false);
 
   useEffect(() => {
@@ -223,11 +225,16 @@ const Dashboard = () => {
   // Indicador de conclusão no prazo - semestral
   const indicadorData = useMemo(() => {
     const now = new Date();
-    const year = now.getFullYear();
-    const isFirstHalf = now.getMonth() < 6;
-    const semStart = isFirstHalf ? `${year}-01-01` : `${year}-07-01`;
-    const semEnd = isFirstHalf ? `${year}-06-30` : `${year}-12-31`;
-    const semLabel = isFirstHalf ? `1º Semestre ${year}` : `2º Semestre ${year}`;
+    // índice de semestre 0-based (ano*2 + 0=1ºsem/1=2ºsem) + offset de navegação
+    const curHalf = now.getFullYear() * 2 + (now.getMonth() < 6 ? 0 : 1);
+    const selHalf = curHalf + semOffset;
+    const selYear = Math.floor(selHalf / 2);
+    const isFirstHalf = selHalf % 2 === 0;
+    const semStart = isFirstHalf ? `${selYear}-01-01` : `${selYear}-07-01`;
+    const semEnd = isFirstHalf ? `${selYear}-06-30` : `${selYear}-12-31`;
+    const semLabel = isFirstHalf ? `1º Semestre ${selYear}` : `2º Semestre ${selYear}`;
+    const semPeriodo = isFirstHalf ? '01/01–30/06' : '01/07–31/12';
+    const encerrado = semEnd < format(now, 'yyyy-MM-dd');
 
     // "Em andamento" status ids (any case/variation)
     const emAndamentoIds = new Set(
@@ -264,15 +271,18 @@ const Dashboard = () => {
       }
     });
 
-    // Effective completion date: manual override (data_conclusao) > last exit from "em andamento"
+    // Conclusão efetiva: 2ª conclusão > 1ª conclusão manual > última saída de "em andamento"
     const getEffectiveDate = (d: any): string => {
+      if (d.data_conclusao_2) return String(d.data_conclusao_2).slice(0, 10);
       if (d.data_conclusao) return String(d.data_conclusao).slice(0, 10);
       return lastExitMap[d.id] || '';
     };
+    // Prazo efetivo: usa o 2º prazo quando existe (assim a 2ª rodada não fica "atrasada")
+    const getPrazo = (d: any): string | null => d.prazo_2 || d.prazo || null;
 
     // Filter demandas: have prazo, currently in a target status, completion in semester
     const elegiveis = allDemandasRaw.filter((d: any) => {
-      if (!d.prazo) return false;
+      if (!getPrazo(d)) return false;
       if (indicadorArqFilter !== 'all' && d.arquiteta_id !== indicadorArqFilter) return false;
       if (!targetStatusIds.has(d.status_id)) return false;
       const eff = getEffectiveDate(d);
@@ -280,24 +290,26 @@ const Dashboard = () => {
       return eff >= semStart && eff <= semEnd;
     });
 
-    const noPrazo = elegiveis.filter((d: any) => getEffectiveDate(d) <= d.prazo);
+    const noPrazo = elegiveis.filter((d: any) => getEffectiveDate(d) <= (getPrazo(d) as string));
 
     const detalhes = elegiveis.map((d: any) => {
       const completionDate = getEffectiveDate(d);
+      const pz = getPrazo(d) as string;
       return {
         id: d.id,
         empreendimento: d.empreendimento?.nome || '—',
         tipo: d.tipo_projeto?.nome || '—',
-        prazo: d.prazo,
+        prazo: pz,
+        temPrazo2: !!d.prazo_2,
         dataConclusao: completionDate,
-        noPrazo: completionDate <= d.prazo,
+        noPrazo: completionDate <= pz,
       };
     });
 
     const percentual = elegiveis.length > 0 ? (noPrazo.length / elegiveis.length) * 100 : null;
 
-    return { semLabel, total: elegiveis.length, noPrazo: noPrazo.length, percentual, detalhes };
-  }, [allDemandasRaw, allStatusRaw, allStatusHistRaw, indicadorArqFilter]);
+    return { semLabel, semPeriodo, encerrado, total: elegiveis.length, noPrazo: noPrazo.length, percentual, detalhes };
+  }, [allDemandasRaw, allStatusRaw, allStatusHistRaw, indicadorArqFilter, semOffset]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -328,10 +340,20 @@ const Dashboard = () => {
       {!loading && (
         <div className="bg-card border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Target className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold">Conclusão no Prazo</h2>
-              <span className="text-xs text-muted-foreground">({indicadorData.semLabel})</span>
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSemOffset((o) => o - 1)} title="Semestre anterior">
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {indicadorData.semLabel} · {indicadorData.semPeriodo} · {indicadorData.encerrado ? 'encerrado' : 'em curso'}
+                </span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSemOffset((o) => Math.min(0, o + 1))} disabled={semOffset >= 0} title="Próximo semestre">
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <Select value={indicadorArqFilter} onValueChange={setIndicadorArqFilter}>
               <SelectTrigger className="h-8 w-[180px] text-xs">

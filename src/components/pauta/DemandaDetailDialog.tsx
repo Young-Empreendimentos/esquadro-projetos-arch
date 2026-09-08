@@ -51,6 +51,10 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const [prazoValue, setPrazoValue] = useState('');
   const [editingConclusao, setEditingConclusao] = useState(false);
   const [conclusaoValue, setConclusaoValue] = useState('');
+  const [editingPrazo2, setEditingPrazo2] = useState(false);
+  const [prazo2Value, setPrazo2Value] = useState('');
+  const [editingConclusao2, setEditingConclusao2] = useState(false);
+  const [conclusao2Value, setConclusao2Value] = useState('');
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
 
@@ -313,6 +317,62 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     }
   };
 
+  const handleSavePrazo2 = async () => {
+    if (!demanda) return;
+    const value = prazo2Value || null;
+    const { error } = await projetosDb
+      .from('esquadro_demandas')
+      .update({ prazo_2: value })
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar 2º prazo', description: error.message, variant: 'destructive' });
+    } else {
+      demanda.prazo_2 = value;
+      setEditingPrazo2(false);
+      onRefresh?.();
+    }
+  };
+
+  const handleSaveConclusao2 = async () => {
+    if (!demanda) return;
+    const value = conclusao2Value || null;
+    const update: any = { data_conclusao_2: value };
+    // Definir a 2ª conclusão também marca como "Concluído" (igual à 1ª).
+    if (value) {
+      const { data: concluido } = await projetosDb
+        .from('esquadro_status')
+        .select('id, nome')
+        .ilike('nome', 'Concluído')
+        .limit(1)
+        .maybeSingle();
+      if (concluido?.id) update.status_id = concluido.id;
+    }
+    const { error } = await projetosDb
+      .from('esquadro_demandas')
+      .update(update)
+      .eq('id', demanda.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar 2ª conclusão', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const previousStatusId = demanda.status_id;
+    demanda.data_conclusao_2 = value;
+    if (update.status_id && update.status_id !== previousStatusId) {
+      await projetosDb.from('esquadro_status_historico').insert({
+        demanda_id: demanda.id,
+        status_anterior_id: previousStatusId || null,
+        status_novo_id: update.status_id,
+        observacao: 'Status alterado automaticamente ao definir a 2ª data de conclusão.',
+        user_id: user?.id || null,
+      });
+      demanda.status_id = update.status_id;
+      if (demanda.status) demanda.status = { ...demanda.status, id: update.status_id, nome: 'Concluído' };
+      fetchStatusHistory();
+    }
+    setEditingConclusao2(false);
+    onRefresh?.();
+  };
+
   if (!demanda) return null;
 
   return (
@@ -405,6 +465,56 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
                 </span>
               );
             })()}
+            {/* 2º Prazo (aparece quando ja existe o 1o prazo) */}
+            {demanda.prazo && (editingPrazo2 ? (
+              <span className="inline-flex items-center gap-1">
+                · 2º Prazo:
+                <Input
+                  type="date"
+                  value={prazo2Value}
+                  onChange={(e) => setPrazo2Value(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSavePrazo2}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingPrazo2(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : ((isAdmin || demanda.prazo_2) && (
+              <span
+                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
+                onClick={isAdmin ? () => { setPrazo2Value(demanda.prazo_2 || ''); setEditingPrazo2(true); } : undefined}
+              >
+                · 2º Prazo: {demanda.prazo_2 ? format(new Date(demanda.prazo_2 + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
+              </span>
+            )))}
+            {/* 2ª Conclusao (aparece quando ja existe o 2o prazo) */}
+            {demanda.prazo_2 && (editingConclusao2 ? (
+              <span className="inline-flex items-center gap-1">
+                · 2ª Conclusão:
+                <Input
+                  type="date"
+                  value={conclusao2Value}
+                  onChange={(e) => setConclusao2Value(e.target.value)}
+                  className="w-36 h-6 text-xs"
+                />
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSaveConclusao2}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditingConclusao2(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            ) : (
+              <span
+                className={isAdmin ? 'cursor-pointer hover:underline' : ''}
+                onClick={isAdmin ? () => { setConclusao2Value(demanda.data_conclusao_2 || ''); setEditingConclusao2(true); } : undefined}
+              >
+                · 2ª Conclusão: {demanda.data_conclusao_2 ? format(new Date(demanda.data_conclusao_2 + 'T00:00:00'), 'dd/MM/yyyy') : (isAdmin ? 'Definir' : '—')}
+              </span>
+            ))}
             {editingHoras ? (
               <span className="inline-flex items-center gap-1 ml-1">
                 · <Input

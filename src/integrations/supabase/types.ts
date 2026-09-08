@@ -3397,6 +3397,7 @@ export type Database = {
           arquiteta_id: string | null
           created_at: string
           data_conclusao: string | null
+          data_conclusao_2: string | null
           data_solicitacao: string
           empreendimento_id: string
           horas_estimadas: number | null
@@ -3404,6 +3405,7 @@ export type Database = {
           instrucoes: string | null
           ordem_kanban: number
           prazo: string | null
+          prazo_2: string | null
           prazo_estimado: string | null
           prioridade: number
           status_id: string
@@ -3414,6 +3416,7 @@ export type Database = {
           arquiteta_id?: string | null
           created_at?: string
           data_conclusao?: string | null
+          data_conclusao_2?: string | null
           data_solicitacao?: string
           empreendimento_id: string
           horas_estimadas?: number | null
@@ -3421,6 +3424,7 @@ export type Database = {
           instrucoes?: string | null
           ordem_kanban?: number
           prazo?: string | null
+          prazo_2?: string | null
           prazo_estimado?: string | null
           prioridade?: number
           status_id: string
@@ -3431,6 +3435,7 @@ export type Database = {
           arquiteta_id?: string | null
           created_at?: string
           data_conclusao?: string | null
+          data_conclusao_2?: string | null
           data_solicitacao?: string
           empreendimento_id?: string
           horas_estimadas?: number | null
@@ -3438,6 +3443,7 @@ export type Database = {
           instrucoes?: string | null
           ordem_kanban?: number
           prazo?: string | null
+          prazo_2?: string | null
           prazo_estimado?: string | null
           prioridade?: number
           status_id?: string
