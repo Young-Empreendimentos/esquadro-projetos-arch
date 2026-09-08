@@ -123,10 +123,17 @@ const Dashboard = () => {
         totalDemandas: allDemandas.length,
       });
 
-      // Top urgentes (closest deadline, not finished)
+      // Demandas com prazo próximo: usa o prazo mais recente (2º quando existe) e
+      // só mostra as que AINDA não têm conclusão na rodada atual (exclui canceladas).
+      const prazoEf = (d: any) => d.prazo_2 || d.prazo;
+      const pendente = (d: any) => {
+        if (canceladoIds.includes(d.status_id)) return false;
+        if (d.prazo_2) return !d.data_conclusao_2;                       // 2ª rodada: pendente até a 2ª conclusão
+        return !concluidoIds.includes(d.status_id) && !d.data_conclusao; // sem 2º prazo: só se não concluída
+      };
       const urgentesList = allDemandas
-        .filter((d: any) => d.prazo && !finishedIds.includes(d.status_id))
-        .sort((a: any, b: any) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime())
+        .filter((d: any) => prazoEf(d) && pendente(d))
+        .sort((a: any, b: any) => new Date(prazoEf(a)).getTime() - new Date(prazoEf(b)).getTime())
         .slice(0, 5);
       setUrgentes(urgentesList);
 
@@ -518,7 +525,8 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {urgentes.map((d: any) => {
-                const isLate = d.prazo && new Date(d.prazo) < new Date();
+                const prazoEf = d.prazo_2 || d.prazo;
+                const isLate = prazoEf && new Date(prazoEf) < new Date();
                 return (
                   <div key={d.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                     <div className="min-w-0 flex-1">
@@ -533,7 +541,7 @@ const Dashboard = () => {
                       </Badge>
                       <div>
                         <p className="text-sm font-medium">
-                          {format(new Date(d.prazo), 'dd/MM/yyyy')}
+                          {format(new Date(prazoEf), 'dd/MM/yyyy')}{d.prazo_2 ? ' (2º)' : ''}
                         </p>
                         {isLate && (
                           <p className="text-xs text-destructive font-medium">Atrasada</p>
