@@ -1,3 +1,5 @@
+import CelebracaoVenda from "@/components/CelebracaoVenda";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -67,6 +69,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <CelebracaoVenda supabase={supabase} sistema="Esquadro" somUrl="/sons/venda-celebracao.mp3" />
       <BrowserRouter>
         <AuthProvider>
           <PendenciasModal />
