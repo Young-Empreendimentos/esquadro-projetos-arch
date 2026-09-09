@@ -273,7 +273,8 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   const handleSavePrazo = async () => {
     if (!demanda || !prazoValue) { setEditingPrazo(false); return; }
     const value = prazoValue;
-    const update: any = { prazo: value };
+    // Novo prazo inicia uma nova rodada: limpa a conclusão atual (a anterior fica no histórico).
+    const update: any = { prazo: value, data_conclusao: null };
     // Reabrir: um novo prazo numa demanda concluída volta o status para "Em andamento".
     let novoStatusId: string | null = null;
     if ((statusMap[demanda.status_id] || '').toLowerCase().includes('conclu')) {
@@ -295,6 +296,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     await (projetosDb.from('esquadro_demanda_prazos' as any) as any)
       .insert({ demanda_id: demanda.id, prazo: value, user_id: user?.id || null });
     demanda.prazo = value;
+    demanda.data_conclusao = null;
     if (novoStatusId) {
       const previousStatusId = demanda.status_id;
       await projetosDb.from('esquadro_status_historico').insert({
