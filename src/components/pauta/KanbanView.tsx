@@ -125,6 +125,14 @@ const KanbanView = ({ demandas, onRefresh, onDemandaClick }: KanbanViewProps) =>
       });
     }
 
+    // Ao mover para "Concluído", preenche a conclusão automaticamente (data de hoje) + histórico.
+    if ((statusName || '').toLowerCase().includes('conclu')) {
+      const hoje = new Date().toISOString().slice(0, 10);
+      await projetosDb.from('esquadro_demandas').update({ data_conclusao: hoje }).eq('id', demandaId);
+      await (projetosDb.from('esquadro_demanda_conclusoes' as any) as any)
+        .insert({ demanda_id: demandaId, data_conclusao: hoje, user_id: user?.id || null });
+    }
+
     setCommitting(false);
     setPendingChange(null);
     setObservacao('');
