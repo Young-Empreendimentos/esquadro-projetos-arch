@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { hojeISO } from '@/lib/utils';
 import type { Status, Empreendimento, TipoProjeto, Profile } from '@/types/database';
 
 interface NovaDemandaDialogProps {
@@ -71,7 +72,7 @@ const NovaDemandaDialog = ({ open, onOpenChange, onCreated }: NovaDemandaDialogP
       prazo: form.prazo || null,
       horas_estimadas: form.horas_estimadas ? Number(form.horas_estimadas) : null,
       instrucoes: form.instrucoes || null,
-      data_solicitacao: new Date().toISOString().split('T')[0],
+      data_solicitacao: hojeISO(),
     });
 
     if (error) {

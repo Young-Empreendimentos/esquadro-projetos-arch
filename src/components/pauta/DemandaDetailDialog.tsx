@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Send, Pencil, Check, X, AlertTriangle, Plus, Trash2, ChevronDown, History, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { hojeISO } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -180,7 +181,7 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
     const { error } = await projetosDb.from('esquadro_impugnacoes').insert({
       demanda_id: demanda.id,
       descricao: novaImpugnacao.trim(),
-      data: novaImpugnacaoData || new Date().toISOString().split('T')[0],
+      data: novaImpugnacaoData || hojeISO(),
     });
     if (error) {
       toast({ title: 'Erro ao registrar impugnação', description: error.message, variant: 'destructive' });
