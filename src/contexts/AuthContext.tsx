@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user && provider === 'google'
           && !ALLOWED_DOMAINS.some((d) => email.toLowerCase().endsWith(d))) {
         setAuthError(`Login com Google permitido apenas para e-mails ${ALLOWED_DOMAINS.join(' ou ')}.`);
-        supabase.auth.signOut();
+        supabase.auth.signOut({ scope: 'local' });
         setSession(null);
         setUser(null);
         setProfile(null);
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setProfile(null);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   const clearAuthError = () => setAuthError(null);
