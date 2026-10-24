@@ -272,8 +272,24 @@ const DemandaDetailDialog = ({ demanda, open, onOpenChange, onRefresh }: Demanda
   };
 
   const handleSavePrazo = async () => {
-    if (!demanda || !prazoValue) { setEditingPrazo(false); return; }
-    const value = prazoValue;
+    if (!demanda) { setEditingPrazo(false); return; }
+    const value = prazoValue.trim();
+
+    // Campo vazio = REMOVER o prazo (vira "sem prazo"). Não reabre, não mexe na
+    // conclusão e não entra no histórico (que é só de prazos efetivamente definidos).
+    if (!value) {
+      if (!demanda.prazo) { setEditingPrazo(false); return; }
+      const { error } = await projetosDb.from('esquadro_demandas').update({ prazo: null }).eq('id', demanda.id);
+      if (error) {
+        toast({ title: 'Erro ao remover prazo', description: error.message, variant: 'destructive' });
+        return;
+      }
+      demanda.prazo = null;
+      setEditingPrazo(false);
+      fetchHistoricos();
+      onRefresh?.();
+      return;
+    }
     // Novo prazo inicia uma nova rodada: limpa a conclusão atual (a anterior fica no histórico).
     const update: any = { prazo: value, data_conclusao: null };
     // Reabrir: um novo prazo numa demanda concluída volta o status para "Em andamento".
